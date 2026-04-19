@@ -1,0 +1,2880 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CornerEdge — Sinais de Escanteios</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0a0b0f;
+  --bg2:      #111318;
+  --bg3:      #181b22;
+  --border:   rgba(255,255,255,0.07);
+  --border2:  rgba(255,255,255,0.12);
+  --text:     #e8eaf0;
+  --muted:    #7a7f8e;
+  --dim:      #4a4f5e;
+
+  --green:    #00e676;
+  --green2:   #1db954;
+  --green-bg: rgba(0,230,118,0.08);
+  --red:      #ff4757;
+  --red-bg:   rgba(255,71,87,0.08);
+  --amber:    #ffa726;
+  --amber-bg: rgba(255,167,38,0.08);
+  --blue:     #42a5f5;
+  --blue-bg:  rgba(66,165,245,0.08);
+  --purple:   #ab47bc;
+  --purple-bg:rgba(171,71,188,0.08);
+  --teal:     #26c6da;
+  --teal-bg:  rgba(38,198,218,0.08);
+  --pink:     #ec407a;
+  --pink-bg:  rgba(236,64,122,0.08);
+  --orange:   #ff7043;
+  --orange2:  #f4511e;
+  --orange-bg:rgba(255,112,67,0.10);
+
+  --font-display: 'Syne', sans-serif;
+  --font-body:    'DM Sans', sans-serif;
+  --font-mono:    'IBM Plex Mono', monospace;
+
+  --radius:   10px;
+  --radius-lg:16px;
+  --trans:    all 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
+}
+
+/* Garante que nada estoure a largura da tela */
+*, *::before, *::after {
+  max-width: 100%;
+}
+
+/* ── GRID NOISE TEXTURE ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 20% 10%, rgba(0,230,118,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 90%, rgba(66,165,245,0.04) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── HEADER ── */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(10,11,15,0.92);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+}
+
+.header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+  gap: 20px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.logo-icon {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--green), var(--teal));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.logo-text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--text);
+  letter-spacing: -0.5px;
+}
+
+.logo-badge {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--green);
+  background: var(--green-bg);
+  border: 1px solid rgba(0,230,118,0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-dot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--muted);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  animation: pulse-dot 2s infinite;
+}
+
+.dot.off { background: var(--dim); box-shadow: none; animation: none; }
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.header-time {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ── STATS BAR ── */
+.stats-bar {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+}
+
+.stats-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  padding: 0 24px;
+  border-right: 1px solid var(--border);
+  min-width: 110px;
+}
+
+.stat-item:first-child { padding-left: 0; }
+.stat-item:last-child { border-right: none; }
+
+.stat-label {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+.stat-value.green { color: var(--green); }
+.stat-value.blue  { color: var(--blue); }
+.stat-value.amber { color: var(--amber); }
+.stat-value.red   { color: var(--red); }
+
+/* ── LAYOUT PRINCIPAL ── */
+.main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+  display: grid;
+  grid-template-columns: 260px 1fr 280px;
+  gap: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  position: sticky;
+  top: 100px;
+  height: fit-content;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sidebar-section {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.sidebar-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--dim);
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.filter-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 13px;
+  cursor: pointer;
+  transition: var(--trans);
+  text-align: left;
+}
+
+.filter-btn:hover { background: var(--bg3); color: var(--text); }
+.filter-btn.active { color: var(--green); background: var(--green-bg); }
+
+.filter-btn .badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: var(--bg3);
+  color: var(--dim);
+  padding: 2px 7px;
+  border-radius: 10px;
+  min-width: 24px;
+  text-align: center;
+}
+
+.filter-btn.active .badge { background: rgba(0,230,118,0.15); color: var(--green); }
+
+.filter-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.filtro-label {
+  display: flex;
+  align-items: center;
+}
+
+/* Legenda de tipos */
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Guia de leitura */
+.guide-item {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.guide-item:last-child { border-bottom: none; }
+.guide-item strong { color: var(--text); font-weight: 500; }
+
+/* ── TIMELINE ── */
+.timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.timeline-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.timeline-subtitle {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: var(--trans);
+}
+
+.refresh-btn:hover { border-color: var(--green); color: var(--green); }
+.refresh-btn.spinning svg { animation: spin 1s linear infinite; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.timeline-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+
+/* Linha vertical da timeline */
+.timeline-feed::before {
+  content: '';
+  position: absolute;
+  left: 23px;
+  top: 12px;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(to bottom, var(--border2), var(--border), transparent);
+  z-index: 0;
+}
+
+/* ── CARDS DE SINAL ── */
+.signal-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 0;
+  margin-bottom: 16px;
+  opacity: 0;
+  transform: translateY(16px);
+  animation: fade-in 0.35s ease forwards;
+  min-width: 0;
+  width: 100%;
+}
+
+@keyframes fade-in {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.signal-card.novo .card-inner {
+  border-color: rgba(0,230,118,0.25);
+  box-shadow: 0 0 0 1px rgba(0,230,118,0.1), inset 0 0 20px rgba(0,230,118,0.02);
+}
+
+/* Ícone da timeline */
+.signal-icon-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  z-index: 1;
+}
+
+.signal-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  border: 1px solid var(--border2);
+}
+
+.signal-time {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--dim);
+  writing-mode: vertical-lr;
+  transform: rotate(180deg);
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+/* Card principal */
+.card-inner {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: var(--trans);
+  cursor: pointer;
+  margin-left: 12px;
+  min-width: 0;
+  width: 100%;
+}
+
+.card-inner:hover {
+  border-color: var(--border2);
+  transform: translateX(2px);
+}
+
+/* Topo do card */
+.card-top {
+  padding: 14px 16px 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.card-tipo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+
+.card-jogo {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-times {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-placar {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--green);
+  margin-left: 6px;
+}
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+  flex-wrap: wrap;
+}
+
+.card-liga {
+  font-size: 11px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+.card-minuto {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--amber);
+  background: var(--amber-bg);
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.card-minuto.pre {
+  color: var(--blue);
+  background: var(--blue-bg);
+}
+
+/* Escanteios do card */
+.card-corners {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px 12px;
+}
+
+.corners-box {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+
+.corners-label {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.corners-val {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.corners-sep {
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.corners-total {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+/* Dados do sinal */
+.card-dados {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.dado-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dado-label {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dado-valor {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.dado-valor.destaque { color: var(--green); }
+.dado-valor.alerta   { color: var(--amber); }
+.dado-valor.info     { color: var(--blue); }
+
+/* Barra de confiança */
+.card-confianca {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.conf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.conf-label {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.conf-valor {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.conf-nivel {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.conf-bar-track {
+  height: 5px;
+  background: var(--bg3);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.conf-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* Análise IA */
+.card-ia {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: rgba(171,71,188,0.04);
+}
+
+.ia-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.ia-label {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--purple);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.ia-text {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+  font-style: italic;
+}
+
+/* Recomendação */
+.card-recomendacao {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--green-bg);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.recom-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.recom-text {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.recom-detalhe {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+/* ── CARD AGENDA ── */
+.card-agenda .card-inner {
+  border-color: rgba(66,165,245,0.2);
+  background: linear-gradient(135deg, var(--bg2), rgba(66,165,245,0.03));
+}
+
+.agenda-titulo {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--blue);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agenda-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.agenda-liga-header {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--blue);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 8px 0 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.agenda-jogo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  font-size: 13px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+}
+
+.agenda-jogo:last-child { border-bottom: none; }
+
+.agenda-times {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+.agenda-hora {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 5px;
+}
+
+.agenda-hora.iminente { color: var(--red); background: var(--red-bg); }
+.agenda-hora.breve    { color: var(--amber); background: var(--amber-bg); }
+.agenda-hora.normal   { color: var(--muted); background: var(--bg3); }
+
+/* ── EMPTY STATE ── */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+/* ── LOADING ── */
+.loading-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background: linear-gradient(to right, var(--green), var(--teal));
+  z-index: 9999;
+  transition: width 0.3s ease;
+}
+
+/* ── TOAST ── */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--text);
+  animation: toast-in 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 280px;
+  border-left: 3px solid var(--green);
+}
+
+@keyframes toast-in { from { opacity:0; transform: translateX(20px); } to { opacity:1; transform:translateX(0); } }
+
+/* ── TIER BADGES ── */
+.tier-t1 { color: var(--amber); }
+.tier-t2 { color: var(--muted); }
+.tier-t3 { color: var(--dim); }
+
+/* ── TOOLTIP ── */
+[data-tip] {
+  position: relative;
+}
+[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  z-index: 999;
+  pointer-events: none;
+}
+
+/* ── PAINEL DIREITO ── */
+.painel-direito {
+  position: sticky;
+  top: 100px;
+  height: fit-content;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.painel-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.painel-titulo {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--dim);
+  padding: 12px 16px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.stat-mini {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.stat-mini:last-child { border-bottom: none; }
+
+.stat-mini-label {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-mini-val {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.tipo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  transition: background .15s;
+}
+.tipo-row:last-child { border-bottom: none; }
+.tipo-row:hover { background: var(--bg3); }
+
+.tipo-nome {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.tipo-barra-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tipo-barra {
+  width: 60px;
+  height: 4px;
+  background: var(--bg3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.tipo-barra-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .6s ease;
+}
+
+.tipo-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  min-width: 20px;
+  text-align: right;
+}
+
+.dica-item {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.dica-item:last-child { border-bottom: none; }
+
+.dica-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  font-family: var(--font-mono);
+}
+
+.dica-text {
+  color: var(--muted);
+}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ══════════════════════════════════════════════
+   RESPONSIVIDADE — abordagem mobile-first real
+   ══════════════════════════════════════════════ */
+
+/* ── Tablet largo: esconde painel direito ── */
+@media (max-width: 1200px) {
+  .main { grid-template-columns: 240px 1fr; max-width: 100%; }
+  .painel-direito { display: none; }
+}
+
+/* ── Tablet: sidebar some, só timeline ── */
+@media (max-width: 900px) {
+  .main { grid-template-columns: 1fr; padding: 16px; gap: 16px; }
+  .sidebar { display: none; }
+  .stats-bar { padding: 10px 16px; }
+  .stat-item { min-width: 70px; padding: 0 10px; }
+  .stat-value { font-size: 18px; }
+}
+
+/* ── Mobile: tudo vertical, cards full-width ── */
+@media (max-width: 640px) {
+
+  /* Header compacto */
+  .header { padding: 0 12px; }
+  .header-inner { height: 50px; gap: 8px; }
+  .logo-icon { width: 26px; height: 26px; font-size: 13px; }
+  .logo-text { font-size: 14px; }
+  .logo-badge { display: none; }
+  .status-dot { gap: 4px; }
+  .status-dot span { font-size: 11px; }
+  .dot { width: 6px; height: 6px; }
+  .header-time { font-size: 10px; white-space: nowrap; }
+
+  /* Stats bar scroll horizontal */
+  .stats-bar { padding: 6px 12px; }
+  .stats-inner { overflow-x: auto; flex-wrap: nowrap; gap: 0; scrollbar-width: none; }
+  .stats-inner::-webkit-scrollbar { display: none; }
+  .stat-item { min-width: 64px; padding: 0 8px; flex-shrink: 0; }
+  .stat-value { font-size: 15px; }
+  .stat-label { font-size: 8px; letter-spacing: 0.5px; }
+
+  /* Layout principal: 1 coluna, sem sidebar */
+  .main { grid-template-columns: 1fr; padding: 10px; gap: 10px; }
+  .sidebar { display: none; }
+  .painel-direito { display: none; }
+
+  /* ── TIMELINE MOBILE ── */
+  .timeline-header { margin-bottom: 12px; gap: 8px; }
+  .timeline-title { font-size: 16px; }
+  .timeline-subtitle { font-size: 11px; }
+  .refresh-btn { padding: 6px 10px; font-size: 11px; }
+
+  /* Remove a linha vertical e o ícone lateral */
+  .timeline-feed::before { display: none; }
+  .signal-icon-col { display: none; }
+
+  /* ── CARDS: ocupam 100% da tela ── */
+  .signal-card {
+    display: block;        /* cancela o grid de 2 colunas */
+    margin-bottom: 12px;
+  }
+
+  .card-inner {
+    margin-left: 0;        /* remove o recuo do ícone lateral */
+    width: 100%;
+    overflow: hidden;
+  }
+
+  /* Topo do card */
+  .card-top {
+    padding: 10px 12px 8px;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .card-tipo-badge { font-size: 10px; padding: 2px 8px; }
+
+  /* Nome dos times */
+  .card-times { font-size: 13px; white-space: normal; word-break: break-word; }
+  .card-placar { font-size: 12px; }
+
+  /* Meta: liga e minuto */
+  .card-meta { flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+  .card-liga { font-size: 10px; max-width: 100%; white-space: normal; }
+  .card-minuto { font-size: 10px; }
+
+  /* Escanteios */
+  .card-corners { padding: 0 12px 10px; gap: 6px; flex-wrap: wrap; }
+  .corners-box { padding: 3px 8px; }
+  .corners-val { font-size: 14px; }
+  .corners-label { font-size: 9px; }
+  .corners-total { font-size: 10px; }
+
+  /* Dados estatísticos: 2 colunas fixas */
+  .card-dados {
+    padding: 10px 12px;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .dado-label { font-size: 9px; }
+  .dado-valor { font-size: 12px; }
+
+  /* Barra de confiança */
+  .card-confianca { padding: 8px 12px; }
+  .conf-valor { font-size: 15px; }
+  .conf-nivel { font-size: 9px; }
+  .conf-label { font-size: 9px; }
+
+  /* Recomendação */
+  .card-recomendacao { padding: 10px 12px; gap: 8px; }
+  .recom-icon { font-size: 15px; }
+  .recom-text { font-size: 12px; }
+  .recom-detalhe { font-size: 10px; }
+
+  /* Análise IA */
+  .card-ia { padding: 10px 12px; }
+  .ia-text { font-size: 12px; }
+  .ia-label { font-size: 9px; }
+
+  /* Card agenda */
+  .agenda-titulo { font-size: 13px; }
+  .agenda-jogo { font-size: 12px; padding: 4px 0; }
+  .agenda-times { max-width: 200px; }
+  .agenda-hora { font-size: 10px; padding: 1px 6px; }
+
+  /* Toast menor */
+  .toast { font-size: 12px; max-width: 240px; padding: 8px 12px; }
+
+  /* Toast container */
+  .toast-container { bottom: 16px; right: 12px; left: 12px; }
+}
+
+/* ── Mobile pequeno (iPhone SE, etc) ── */
+@media (max-width: 380px) {
+  .header-inner { height: 46px; }
+  .logo-text { font-size: 13px; }
+  .stat-item { min-width: 56px; padding: 0 6px; }
+  .stat-value { font-size: 14px; }
+  .card-dados { grid-template-columns: 1fr 1fr; gap: 6px; }
+}
+
+/* ══════════════════════════════════════════════
+   SISTEMA DE ABAS — Escanteios / Gols
+   ══════════════════════════════════════════════ */
+
+.tabs-nav {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 4px;
+}
+
+.tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--trans);
+  position: relative;
+}
+
+.tab-btn:hover { color: var(--text); background: var(--bg3); }
+
+.tab-btn.active-esc {
+  background: var(--green-bg);
+  color: var(--green);
+  border: 1px solid rgba(0,230,118,0.2);
+}
+
+.tab-btn.active-gols {
+  background: var(--orange-bg);
+  color: var(--orange);
+  border: 1px solid rgba(255,112,67,0.25);
+}
+
+.tab-badge {
+  background: var(--bg3);
+  color: var(--muted);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.tab-btn.active-esc .tab-badge {
+  background: rgba(0,230,118,0.15);
+  color: var(--green);
+}
+
+.tab-btn.active-gols .tab-badge {
+  background: rgba(255,112,67,0.15);
+  color: var(--orange);
+}
+
+/* ══════════════════════════════════════════════
+   HERO DE MARKETING — seção de gols
+   ══════════════════════════════════════════════ */
+
+.gols-hero {
+  background: linear-gradient(135deg, rgba(255,112,67,0.06) 0%, rgba(244,81,30,0.03) 100%);
+  border: 1px solid rgba(255,112,67,0.15);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.gols-hero::before {
+  content: '⚽';
+  position: absolute;
+  right: -10px;
+  top: -10px;
+  font-size: 80px;
+  opacity: 0.04;
+  pointer-events: none;
+}
+
+.gols-hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--orange-bg);
+  color: var(--orange);
+  border: 1px solid rgba(255,112,67,0.25);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.gols-hero-titulo {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+  margin-bottom: 8px;
+}
+
+.gols-hero-titulo span { color: var(--orange); }
+
+.gols-hero-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.65;
+  margin-bottom: 14px;
+}
+
+.gols-hero-pills {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gols-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.gols-pill strong { color: var(--text); }
+
+/* ══════════════════════════════════════════════
+   CARDS DE GOLS
+   ══════════════════════════════════════════════ */
+
+.gol-card {
+  background: var(--bg2);
+  border: 1px solid rgba(255,112,67,0.12);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-bottom: 14px;
+  transition: var(--trans);
+  animation: fade-in 0.35s ease forwards;
+  opacity: 0;
+}
+
+.gol-card:hover {
+  border-color: rgba(255,112,67,0.28);
+  transform: translateY(-1px);
+}
+
+.gol-card.tier-elite {
+  border-color: rgba(255,112,67,0.35);
+  box-shadow: 0 0 0 1px rgba(255,112,67,0.1), inset 0 0 30px rgba(255,112,67,0.02);
+}
+
+/* Header do card */
+.gol-header {
+  padding: 12px 16px 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.gol-tier-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.tier-ELITE  { color: var(--orange);  background: var(--orange-bg);  border-color: rgba(255,112,67,0.3); }
+.tier-QUENTE { color: var(--amber);   background: var(--amber-bg);   border-color: rgba(255,167,38,0.3); }
+.tier-MORNO  { color: var(--blue);    background: var(--blue-bg);    border-color: rgba(66,165,245,0.3); }
+.tier-VIGIAR { color: var(--muted);   background: var(--bg3);        border-color: var(--border2); }
+
+.gol-liga-info {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.gol-liga-nome {
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gol-horario {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--orange);
+  margin-top: 2px;
+}
+
+/* Times */
+.gol-times {
+  padding: 12px 16px 10px;
+}
+
+.gol-confronto {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.gol-vs {
+  font-size: 11px;
+  color: var(--dim);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+
+.gol-tags {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.gol-tag {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  padding: 1px 7px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Stats do jogo */
+.gol-stats {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.gol-stat-time {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gol-stat-label {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gol-stat-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.gol-stat-chip {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--muted);
+  background: var(--bg3);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.gol-forma {
+  display: flex;
+  gap: 2px;
+}
+
+.gol-forma-letra {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Probabilidades */
+.gol-probs {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.gol-probs-titulo {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+
+.gol-probs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.gol-prob-item {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.gol-prob-nome {
+  font-size: 9px;
+  color: var(--dim);
+  margin-bottom: 3px;
+  line-height: 1.3;
+}
+
+.gol-prob-val {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* Lambda (gols esperados) */
+.gol-lambda {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gol-lambda-label {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.gol-lambda-val {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--orange);
+}
+
+.gol-lambda-sub {
+  font-size: 10px;
+  color: var(--dim);
+  font-family: var(--font-mono);
+}
+
+/* Mercado recomendado */
+.gol-mercado {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--orange-bg);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.gol-mercado-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.gol-mercado-nome {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.gol-mercado-detalhe {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 3px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.gol-mercado-chip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-mono);
+}
+
+.gol-mercado-chip strong { color: var(--orange); }
+
+/* Pontuação / Score */
+.gol-score {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gol-score-label {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.gol-score-bar-wrap { flex: 1; }
+
+.gol-score-bar {
+  height: 4px;
+  background: var(--bg3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.gol-score-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--orange2), var(--orange));
+  transition: width .6s ease;
+}
+
+.gol-score-val {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--orange);
+  white-space: nowrap;
+}
+
+/* H2H */
+.gol-h2h {
+  padding: 8px 16px 10px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.gol-h2h-chip {
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.gol-h2h-chip strong { color: var(--text); }
+
+/* Empty state gols */
+.gols-empty {
+  text-align: center;
+  padding: 50px 20px;
+  color: var(--muted);
+}
+
+.gols-empty-icon { font-size: 44px; margin-bottom: 14px; opacity: 0.4; }
+.gols-empty-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.gols-empty-desc { font-size: 13px; line-height: 1.6; color: var(--muted); }
+
+@media (max-width: 640px) {
+  .tabs-nav { margin-bottom: 14px; }
+  .tab-btn { font-size: 12px; padding: 8px 10px; gap: 5px; }
+  .gol-probs-grid { grid-template-columns: repeat(3, 1fr); }
+  .gol-stats { grid-template-columns: 1fr 1fr; }
+  .gols-hero { padding: 14px; }
+  .gols-hero-titulo { font-size: 17px; }
+}
+</style>
+</head>
+<body>
+
+<div class="loading-bar" id="loadingBar" style="width:0%"></div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-inner">
+    <a href="#" class="logo">
+      <div class="logo-icon">⚽</div>
+      <span class="logo-text">CornerEdge</span>
+      <span class="logo-badge">v4.2</span>
+    </a>
+    <div class="header-status">
+      <div class="status-dot" id="statusDot">
+        <div class="dot" id="botDot"></div>
+        <span id="botStatus">Palpites ao vivo</span>
+      </div>
+      <div class="header-time" id="headerTime">--:--</div>
+    </div>
+  </div>
+</header>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stats-inner">
+    <div class="stat-item">
+      <span class="stat-label">Total hoje</span>
+      <span class="stat-value" id="statTotal">—</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Ao vivo</span>
+      <span class="stat-value green" id="statLive">—</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Pré-jogo</span>
+      <span class="stat-value blue" id="statPre">—</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Jogos vivos</span>
+      <span class="stat-value amber" id="statJogos">—</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Atualização</span>
+      <span class="stat-value" style="font-size:13px;font-family:var(--font-mono)" id="statUpdate">—</span>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <!-- FILTROS -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">Filtrar por tipo</div>
+      <button class="filter-btn active" data-filter="todos" onclick="setFilter('todos')">
+        <span class="filtro-label"><span class="filter-icon" style="background:var(--bg3)">🔢</span>Todos os sinais</span>
+        <span class="badge" id="badge-todos">0</span>
+      </button>
+      <button class="filter-btn" data-filter="mercado" onclick="setFilter('mercado')">
+        <span class="filtro-label"><span class="filter-icon" style="background:var(--green-bg)">📈</span>Over / Under</span>
+        <span class="badge" id="badge-mercado">0</span>
+      </button>
+      <button class="filter-btn" data-filter="pre_live" onclick="setFilter('pre_live')">
+        <span class="filtro-label"><span class="filter-icon" style="background:var(--blue-bg)">📋</span>Pré-jogo</span>
+        <span class="badge" id="badge-pre_live">0</span>
+      </button>
+      <button class="filter-btn" data-filter="momentum" onclick="setFilter('momentum')">
+        <span class="filtro-label"><span class="filter-icon" style="background:var(--amber-bg)">🌊</span>Momentum</span>
+        <span class="badge" id="badge-momentum">0</span>
+      </button>
+      <button class="filter-btn" data-filter="pressao" onclick="setFilter('pressao')">
+        <span class="filtro-label"><span class="filter-icon" style="background:var(--red-bg)">🔥</span>Pressão</span>
+        <span class="badge" id="badge-pressao">0</span>
+      </button>
+      <button class="filter-btn" data-filter="handicap" onclick="setFilter('handicap')">
+        <span class="filtro-label"><span class="filter-icon" style="background:var(--purple-bg)">👑</span>Handicap</span>
+        <span class="badge" id="badge-handicap">0</span>
+      </button>
+      <button class="filter-btn" data-filter="tecnico" onclick="setFilter('tecnico')">
+        <span class="filtro-label"><span class="filter-icon" style="background:var(--teal-bg)">🛡️</span>Técnico</span>
+        <span class="badge" id="badge-tecnico">0</span>
+      </button>
+      <button class="filter-btn" data-filter="agenda" onclick="setFilter('agenda')">
+        <span class="filtro-label"><span class="filter-icon" style="background:var(--blue-bg)">📅</span>Agenda</span>
+        <span class="badge" id="badge-agenda">0</span>
+      </button>
+    </div>
+
+    <!-- LEGENDA DE CONFIANÇA -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">Nível de confiança</div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:var(--red)"></div>
+        <span><strong style="color:var(--text)">85%–95%</strong> — Alta</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:var(--amber)"></div>
+        <span><strong style="color:var(--text)">70%–84%</strong> — Média+</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:var(--blue)"></div>
+        <span><strong style="color:var(--text)">60%–69%</strong> — Moderada</span>
+      </div>
+    </div>
+
+    <!-- GUIA DE LEITURA -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">Como ler os sinais</div>
+      <div class="guide-item">
+        <strong>Over X.X Escanteios</strong><br>
+        Projeção aponta mais que X.X corners no total do jogo. Entre no mercado Over.
+      </div>
+      <div class="guide-item">
+        <strong>Momentum</strong><br>
+        2+ escanteios em 12 min. Onda ativa. Próximo corner iminente.
+      </div>
+      <div class="guide-item">
+        <strong>Janela ideal ✅</strong><br>
+        Sinal dentro das janelas 20-42' e 50-75'. Melhor momento de entrada.
+      </div>
+      <div class="guide-item">
+        <strong>Pré-jogo 📋</strong><br>
+        Baseado em H2H e médias dos últimos 5 jogos. Odds melhores antes de começar.
+      </div>
+      <div class="guide-item">
+        <strong>🧠 Análise IA</strong><br>
+        Insight gerado pelo Gemini com contexto que os números não mostram.
+      </div>
+    </div>
+
+    <!-- AVISO -->
+    <div style="padding: 14px 16px; background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius-lg); font-size:11px; color:var(--dim); line-height:1.6;">
+      ⚠️ Os sinais são baseados em análise estatística. Gerencie sempre sua banca. Máximo 3% por entrada.
+    </div>
+
+  </aside>
+
+  <!-- TIMELINE -->
+  <section class="timeline-section">
+    <div class="timeline-header">
+      <div>
+        <div class="timeline-title">Linha do Tempo</div>
+        <div class="timeline-subtitle" id="timelineSubtitle">Aguardando sinais...</div>
+      </div>
+      <button class="refresh-btn" id="refreshBtn" onclick="fetchSinais()">
+        <svg id="refreshIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+        </svg>
+        Atualizar
+      </button>
+    </div>
+
+  <!-- TIMELINE + GOLS com sistema de abas -->
+  <section class="timeline-section">
+
+    <!-- ABAS DE NAVEGAÇÃO -->
+    <div class="tabs-nav">
+      <button class="tab-btn active-esc" id="tab-esc" onclick="setTab('escanteios')">
+        🚩 Escanteios
+        <span class="tab-badge" id="tab-badge-esc">0</span>
+      </button>
+      <button class="tab-btn" id="tab-gols" onclick="setTab('gols')">
+        ⚽ Gols
+        <span class="tab-badge" id="tab-badge-gols">0</span>
+      </button>
+    </div>
+
+    <!-- PAINEL: ESCANTEIOS -->
+    <div id="painel-escanteios">
+      <div class="timeline-header">
+        <div>
+          <div class="timeline-title">Linha do Tempo</div>
+          <div class="timeline-subtitle" id="timelineSubtitle">Aguardando sinais...</div>
+        </div>
+        <button class="refresh-btn" id="refreshBtn" onclick="fetchSinais()">
+          <svg id="refreshIcon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+          Atualizar
+        </button>
+      </div>
+      <div class="timeline-feed" id="timelineFeed">
+        <div class="empty-state">
+          <div class="empty-icon">⏳</div>
+          <div class="empty-title">Carregando sinais...</div>
+          <div style="font-size:12px;margin-top:6px;">Conectando ao servidor do bot</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAINEL: GOLS -->
+    <div id="painel-gols" style="display:none">
+
+      <!-- HERO DE MARKETING -->
+      <div class="gols-hero">
+        <div class="gols-hero-tag">🔥 Novo — Motor Poisson v4.3</div>
+        <div class="gols-hero-titulo">
+          Sinais de Gols com<br>
+          <span>Vantagem Matemática Real</span>
+        </div>
+        <div class="gols-hero-desc">
+          Cada sinal é calculado com distribuição de Poisson, critério de Kelly e EV positivo verificado.
+          Não é achismo — é estatística aplicada ao futebol. Os mesmos métodos usados por casas de aposta profissionais, agora ao seu favor.
+        </div>
+        <div class="gols-hero-pills">
+          <div class="gols-pill">📐 <strong>Distribuição de Poisson</strong></div>
+          <div class="gols-pill">💰 <strong>Critério de Kelly</strong></div>
+          <div class="gols-pill">📊 <strong>EV positivo verificado</strong></div>
+          <div class="gols-pill">🔁 <strong>H2H + Forma recente</strong></div>
+          <div class="gols-pill">⚡ <strong>Varredura a cada 90s</strong></div>
+          <div class="gols-pill">🏆 <strong>60+ ligas monitoradas</strong></div>
+        </div>
+      </div>
+
+      <!-- FILTRO DE TIER -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="gol-tier-filter active" data-tier="todos" onclick="setTierFilter('todos')"
+          style="padding:6px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--bg2);color:var(--muted);font-size:12px;cursor:pointer;transition:var(--trans)">
+          Todos <span id="gf-todos" style="font-family:var(--font-mono);font-size:10px">0</span>
+        </button>
+        <button class="gol-tier-filter" data-tier="ELITE" onclick="setTierFilter('ELITE')"
+          style="padding:6px 14px;border-radius:20px;border:1px solid rgba(255,112,67,0.25);background:var(--orange-bg);color:var(--orange);font-size:12px;cursor:pointer;transition:var(--trans)">
+          🔥🔥 Elite <span id="gf-ELITE" style="font-family:var(--font-mono);font-size:10px">0</span>
+        </button>
+        <button class="gol-tier-filter" data-tier="QUENTE" onclick="setTierFilter('QUENTE')"
+          style="padding:6px 14px;border-radius:20px;border:1px solid rgba(255,167,38,0.25);background:var(--amber-bg);color:var(--amber);font-size:12px;cursor:pointer;transition:var(--trans)">
+          🔥 Quente <span id="gf-QUENTE" style="font-family:var(--font-mono);font-size:10px">0</span>
+        </button>
+        <button class="gol-tier-filter" data-tier="MORNO" onclick="setTierFilter('MORNO')"
+          style="padding:6px 14px;border-radius:20px;border:1px solid rgba(66,165,245,0.25);background:var(--blue-bg);color:var(--blue);font-size:12px;cursor:pointer;transition:var(--trans)">
+          ⚡ Morno <span id="gf-MORNO" style="font-family:var(--font-mono);font-size:10px">0</span>
+        </button>
+        <button class="gol-tier-filter" data-tier="VIGIAR" onclick="setTierFilter('VIGIAR')"
+          style="padding:6px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--bg2);color:var(--muted);font-size:12px;cursor:pointer;transition:var(--trans)">
+          👀 Vigiar <span id="gf-VIGIAR" style="font-family:var(--font-mono);font-size:10px">0</span>
+        </button>
+      </div>
+
+      <!-- FEED DE GOLS -->
+      <div id="golsFeed">
+        <div class="gols-empty">
+          <div class="gols-empty-icon">⚽</div>
+          <div class="gols-empty-title">Bot de Gols conectado</div>
+          <div class="gols-empty-desc">
+            Os sinais aparecem aqui automaticamente conforme o bot analisa as partidas.<br>
+            Varredura a cada 90 segundos em mais de 60 ligas.
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- PAINEL DIREITO -->
+  <aside class="painel-direito">
+
+    <!-- Resumo ao vivo -->
+    <div class="painel-card">
+      <div class="painel-titulo">Resumo ao vivo</div>
+      <div class="stat-mini">
+        <span class="stat-mini-label">🔔 Total de sinais</span>
+        <span class="stat-mini-val" id="pd-total" style="color:var(--text)">—</span>
+      </div>
+      <div class="stat-mini">
+        <span class="stat-mini-label">🔴 Ao vivo</span>
+        <span class="stat-mini-val" id="pd-live" style="color:var(--green)">—</span>
+      </div>
+      <div class="stat-mini">
+        <span class="stat-mini-label">📋 Pré-jogo</span>
+        <span class="stat-mini-val" id="pd-pre" style="color:var(--blue)">—</span>
+      </div>
+      <div class="stat-mini">
+        <span class="stat-mini-label">📅 Agenda</span>
+        <span class="stat-mini-val" id="pd-agenda" style="color:var(--amber)">—</span>
+      </div>
+    </div>
+
+    <!-- Distribuição por tipo -->
+    <div class="painel-card">
+      <div class="painel-titulo">Tipos de sinal</div>
+      <div id="pd-tipos">
+        <div class="tipo-row" style="color:var(--dim);font-size:12px;justify-content:center;padding:16px">Aguardando sinais...</div>
+      </div>
+    </div>
+
+    <!-- Dicas rápidas de trading -->
+    <div class="painel-card">
+      <div class="painel-titulo">Dicas de trading</div>
+      <div class="dica-item">
+        <div class="dica-tag" style="background:var(--green-bg);color:var(--green)">Gestão de banca</div>
+        <div class="dica-text">Nunca arrisque mais de 3% da banca por entrada. Consistência é mais importante que ganhos rápidos.</div>
+      </div>
+      <div class="dica-item">
+        <div class="dica-tag" style="background:var(--amber-bg);color:var(--amber)">Janela ideal ✅</div>
+        <div class="dica-text">Sinais entre 20-42' e 50-75' têm melhor custo-benefício. As odds ainda têm valor nessas faixas.</div>
+      </div>
+      <div class="dica-item">
+        <div class="dica-tag" style="background:var(--blue-bg);color:var(--blue)">Pré-jogo</div>
+        <div class="dica-text">Sinais pré-jogo baseados em H2H e médias históricas costumam ter odds mais altas que ao vivo.</div>
+      </div>
+      <div class="dica-item">
+        <div class="dica-tag" style="background:var(--purple-bg);color:var(--purple)">Confiança alta</div>
+        <div class="dica-text">Foque em sinais acima de 80% de confiança. Qualidade é melhor que quantidade de entradas.</div>
+      </div>
+    </div>
+
+    <!-- Aviso legal -->
+    <div style="padding:12px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);font-size:11px;color:var(--dim);line-height:1.6;text-align:center;">
+      ⚠️ Análise estatística.<br>Sem garantia de resultado.<br>Jogue com responsabilidade.
+    </div>
+
+  </aside>
+
+</main>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  URL DA API — Configuração automática
+//  Detecta se está rodando no Vercel (produção) ou local
+// ══════════════════════════════════════════════════════
+
+// ▼▼▼ COLOQUE AQUI A URL DO SEU RAILWAY (inclua o /sinais no final) ▼▼▼
+const API_URL_CONFIGURADA = 'https://corneredge.up.railway.app/sinais';
+// ▲▲▲ Exemplo: 'https://corneredge-production.up.railway.app/sinais' ▲▲▲
+
+function detectarApiUrl() {
+  const estaNaInternet = (
+    window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1' &&
+    window.location.hostname !== ''
+  );
+
+  // Se está no Vercel/internet mas a URL não foi configurada, pede ao usuário
+  if (estaNaInternet && API_URL_CONFIGURADA.includes('COLOQUE_URL')) {
+    const urlSalva = localStorage.getItem('corneredge_api_url');
+    if (urlSalva) return urlSalva;
+
+    const urlDigitada = prompt(
+      '🔗 Configure a URL do seu bot Railway\n\n' +
+      'Acesse o Railway → seu projeto → Settings → Networking\n' +
+      'e cole aqui a URL pública gerada.\n\n' +
+      'Exemplo: https://corneredge-production.up.railway.app/sinais'
+    );
+    if (urlDigitada && urlDigitada.startsWith('http')) {
+      const urlFinal = urlDigitada.endsWith('/sinais')
+        ? urlDigitada
+        : urlDigitada.replace(/\/$/, '') + '/sinais';
+      localStorage.setItem('corneredge_api_url', urlFinal);
+      return urlFinal;
+    }
+    return null;
+  }
+
+  // Se a URL foi configurada corretamente, usa ela
+  if (!API_URL_CONFIGURADA.includes('COLOQUE_URL')) {
+    return API_URL_CONFIGURADA;
+  }
+
+  // Modo local (localhost) — usa porta 8765
+  return 'http://localhost:8765/sinais';
+}
+
+const API_URL = detectarApiUrl();
+const REFRESH_INTERVAL = 15000;
+
+let todosOsSinais = [];
+let filtroAtivo = 'todos';
+let ultimoId = null;
+let autoRefreshTimer = null;
+let sinaisCount = {};
+
+// ── FETCH ──
+async function fetchSinais() {
+  const btn = document.getElementById('refreshBtn');
+  const bar = document.getElementById('loadingBar');
+  btn.classList.add('spinning');
+  bar.style.width = '30%';
+
+  // Verifica se a URL foi configurada
+  if (!API_URL || API_URL.includes('COLOQUE_URL')) {
+    setOnline(false, '⚠️ URL não configurada');
+    mostrarToast('Configure a URL do Railway no index.html', 'amber');
+    btn.classList.remove('spinning');
+    bar.style.width = '0%';
+    return;
+  }
+
+  try {
+    const res = await fetch(API_URL + '?t=' + Date.now(), {
+      cache: 'no-store',
+      mode: 'cors',
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const dados = await res.json();
+    bar.style.width = '80%';
+
+    const novos = processarSinais(dados);
+    atualizarStats(dados.stats);
+    atualizarTimeline(novos);
+    atualizarBadges();
+    setOnline(true);
+
+    if (novos > 0) {
+      mostrarToast(`${novos} novo${novos > 1 ? 's' : ''} sinal${novos > 1 ? 'is' : ''} recebido${novos > 1 ? 's' : ''}`, 'green');
+    }
+
+  } catch (e) {
+    setOnline(false, 'Offline — bot não alcançável');
+    console.warn('API offline:', e.message, '| URL:', API_URL);
+  } finally {
+    setTimeout(() => { bar.style.width = '100%'; setTimeout(() => { bar.style.width = '0%'; }, 300); }, 200);
+    btn.classList.remove('spinning');
+  }
+}
+
+function processarSinais(dados) {
+  const antigos = new Set(todosOsSinais.map(s => s.id));
+  const novos = (dados.sinais || []).filter(s => !antigos.has(s.id));
+  todosOsSinais = dados.sinais || [];
+
+  // Atualiza contadores por categoria
+  sinaisCount = {};
+  todosOsSinais.forEach(s => {
+    const cat = s.categoria || 'outro';
+    sinaisCount[cat] = (sinaisCount[cat] || 0) + 1;
+  });
+
+  return novos.length;
+}
+
+function atualizarStats(stats) {
+  if (!stats) return;
+  document.getElementById('statTotal').textContent = stats.total || 0;
+  document.getElementById('statLive').textContent = stats.ao_vivo || 0;
+  document.getElementById('statPre').textContent = stats.pre_live || 0;
+  document.getElementById('statJogos').textContent = '—';
+
+  if (stats.ultimo_update) {
+    const d = new Date(stats.ultimo_update);
+    document.getElementById('statUpdate').textContent =
+      d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // Alimenta painel direito
+  document.getElementById('pd-total').textContent = stats.total || 0;
+  document.getElementById('pd-live').textContent  = stats.ao_vivo || 0;
+  document.getElementById('pd-pre').textContent   = stats.pre_live || 0;
+  document.getElementById('pd-agenda').textContent = stats.agenda || 0;
+}
+
+function atualizarBadges() {
+  document.getElementById('badge-todos').textContent = todosOsSinais.length;
+  const cats = ['mercado','pre_live','momentum','pressao','handicap','tecnico','agenda'];
+  cats.forEach(c => {
+    const el = document.getElementById('badge-' + c);
+    if (el) el.textContent = sinaisCount[c] || 0;
+  });
+
+  // Painel direito — distribuição por tipo com barras
+  const tipoConfig = {
+    'mercado':  { icon: '📈', label: 'Over / Under',  cor: 'var(--green)' },
+    'momentum': { icon: '🌊', label: 'Momentum',       cor: 'var(--amber)' },
+    'pressao':  { icon: '🔥', label: 'Pressão',        cor: 'var(--red)' },
+    'handicap': { icon: '👑', label: 'Handicap',       cor: 'var(--purple)' },
+    'tecnico':  { icon: '🛡️', label: 'Técnico',        cor: 'var(--teal)' },
+    'pre_live': { icon: '📋', label: 'Pré-jogo',       cor: 'var(--blue)' },
+    'agenda':   { icon: '📅', label: 'Agenda',         cor: 'var(--blue)' },
+  };
+
+  const total = todosOsSinais.length || 1;
+  const pdTipos = document.getElementById('pd-tipos');
+  if (!pdTipos) return;
+
+  const linhas = cats.map(c => {
+    const cfg = tipoConfig[c] || { icon: '•', label: c, cor: 'var(--muted)' };
+    const cnt = sinaisCount[c] || 0;
+    if (cnt === 0) return '';
+    const pct = Math.round((cnt / total) * 100);
+    return `<div class="tipo-row">
+      <span class="tipo-nome">${cfg.icon} <span style="color:var(--text)">${cfg.label}</span></span>
+      <div class="tipo-barra-wrap">
+        <div class="tipo-barra">
+          <div class="tipo-barra-fill" style="width:${pct}%;background:${cfg.cor}"></div>
+        </div>
+        <span class="tipo-count">${cnt}</span>
+      </div>
+    </div>`;
+  }).filter(Boolean).join('');
+
+  pdTipos.innerHTML = linhas || '<div class="tipo-row" style="color:var(--dim);font-size:12px;justify-content:center;padding:16px">Aguardando sinais...</div>';
+}
+
+function atualizarTimeline(novosCount) {
+  const feed = document.getElementById('timelineFeed');
+  const filtered = filtroAtivo === 'todos'
+    ? todosOsSinais
+    : todosOsSinais.filter(s => s.categoria === filtroAtivo);
+
+  if (filtered.length === 0) {
+    feed.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <div class="empty-title">Nenhum sinal encontrado</div>
+        <div style="font-size:12px;margin-top:6px;">
+          ${filtroAtivo === 'todos' ? 'Aguardando o bot gerar sinais...' : 'Sem sinais nesta categoria ainda.'}
+        </div>
+      </div>`;
+    return;
+  }
+
+  const html = filtered.map((s, i) => renderCard(s, i)).join('');
+  feed.innerHTML = html;
+
+  const sub = document.getElementById('timelineSubtitle');
+  sub.textContent = `${filtered.length} sinal${filtered.length > 1 ? 'is' : ''} exibido${filtered.length > 1 ? 's' : ''}`;
+  atualizarBadgeEsc && atualizarBadgeEsc();
+}
+
+// ── RENDER CARD ──
+function renderCard(s, idx) {
+  if (s.tipo === 'AGENDA') return renderAgenda(s, idx);
+
+  const delay = Math.min(idx * 40, 400);
+  const [cor, bgCor, icone] = tipoVisual(s.tipo);
+  const novoClass = s.novo ? 'novo' : '';
+
+  const conf = s.confianca || 60;
+  const [confCor, confLabel] = confVisual(conf);
+
+  const janelaBadge = s.in_janela
+    ? `<span style="font-size:10px;color:var(--green);background:var(--green-bg);padding:1px 6px;border-radius:4px;font-family:var(--font-mono);">✓ Janela ideal</span>`
+    : '';
+
+  const minutoHtml = s.minuto > 0
+    ? `<span class="card-minuto">⏱ ${s.minuto}'</span>`
+    : s.min_inicio > 0
+    ? `<span class="card-minuto pre">⏳ em ${s.min_inicio} min</span>`
+    : '';
+
+  const dadosHtml = renderDados(s);
+  const iaHtml = s.analise_ia
+    ? `<div class="card-ia">
+        <div class="ia-header">
+          <span style="font-size:14px">🧠</span>
+          <span class="ia-label">Análise IA — Gemini</span>
+        </div>
+        <p class="ia-text">${escHtml(s.analise_ia)}</p>
+      </div>` : '';
+
+  const recHtml = renderRecomendacao(s);
+
+  return `
+<div class="signal-card ${novoClass}" style="animation-delay:${delay}ms">
+  <div class="signal-icon-col">
+    <div class="signal-icon" style="background:${bgCor};border-color:${cor}30">${icone}</div>
+    <div class="signal-time">${s.horario}</div>
+  </div>
+  <div class="card-inner">
+    <div class="card-top">
+      <div>
+        <span class="card-tipo-badge" style="color:${cor};background:${bgCor};border-color:${cor}30">
+          ${labelTipo(s.tipo)}
+        </span>
+        ${janelaBadge}
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <span class="tier-${s.tier ? s.tier.toLowerCase() : 't3'}" style="font-size:11px;font-family:var(--font-mono)" data-tip="${s.tier === 'T1' ? 'Liga top — dados confiáveis' : s.tier === 'T2' ? 'Liga boa' : 'Liga secundária'}">${s.tier}</span>
+      </div>
+    </div>
+
+    <div style="padding: 0 16px 10px">
+      <div class="card-times">
+        ${escHtml(s.casa)} <span class="card-placar">${s.gols_casa}×${s.gols_fora}</span> ${escHtml(s.fora)}
+      </div>
+      <div class="card-meta">
+        <span class="card-liga">${escHtml(s.liga)}${s.pais ? ' · ' + escHtml(s.pais) : ''}</span>
+        ${minutoHtml}
+        ${s.media_liga ? `<span style="font-size:10px;color:var(--dim);font-family:var(--font-mono)" data-tip="Média de escanteios nesta liga">⌀ ${s.media_liga}</span>` : ''}
+      </div>
+    </div>
+
+    <div class="card-corners">
+      <div class="corners-box" data-tip="${escHtml(s.casa)} — escanteios">
+        <span class="corners-label">Casa</span>
+        <span class="corners-val">${s.esc_casa}</span>
+      </div>
+      <span class="corners-sep">×</span>
+      <div class="corners-box" data-tip="${escHtml(s.fora)} — escanteios">
+        <span class="corners-label">Fora</span>
+        <span class="corners-val">${s.esc_fora}</span>
+      </div>
+      <span class="corners-total">= <strong style="color:var(--text)">${s.total_esc}</strong> total</span>
+    </div>
+
+    ${dadosHtml}
+
+    <div class="card-confianca">
+      <div class="conf-header">
+        <span class="conf-label">Confiança do sinal</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="conf-nivel" style="color:${confCor};background:${confCor}22">${confLabel}</span>
+          <span class="conf-valor" style="color:${confCor}">${conf}%</span>
+        </div>
+      </div>
+      <div class="conf-bar-track">
+        <div class="conf-bar-fill" style="width:${conf}%;background:${confCor}"></div>
+      </div>
+    </div>
+
+    ${recHtml}
+    ${iaHtml}
+  </div>
+</div>`;
+}
+
+function renderDados(s) {
+  const items = [];
+
+  if (s.projecao != null)
+    items.push({ label: 'Projeção 90\'', valor: s.projecao, cls: 'destaque' });
+  if (s.linha != null)
+    items.push({ label: 'Linha', valor: s.linha });
+  if (s.ritmo != null)
+    items.push({ label: 'Ritmo esc/min', valor: s.ritmo });
+  if (s.ritmo_rec != null && s.ritmo_rec > 0)
+    items.push({ label: 'Ritmo recente', valor: s.ritmo_rec, cls: 'alerta' });
+  if (s.fator_placar != null)
+    items.push({ label: 'Fator placar', valor: 'x' + s.fator_placar });
+  if (s.esc_rec != null && s.esc_rec > 0)
+    items.push({ label: 'Ult. 12 min', valor: s.esc_rec + ' esc', cls: 'alerta' });
+  if (s.time_dom)
+    items.push({ label: 'Dominante', valor: s.time_dom, cls: 'destaque' });
+  if (s.time_mom)
+    items.push({ label: 'Momentum', valor: s.time_mom });
+  if (s.time_pressao)
+    items.push({ label: 'Pressão', valor: s.time_pressao });
+  if (s.chutes_gol != null && s.chutes_gol > 0)
+    items.push({ label: 'Chutes a gol', valor: s.chutes_gol });
+  if (s.ataques != null && s.ataques > 0)
+    items.push({ label: 'Ataques perig.', valor: s.ataques });
+  if (s.time_f)
+    items.push({ label: 'Time forte', valor: s.time_f, cls: 'destaque' });
+  if (s.diff != null)
+    items.push({ label: 'Diferença esc.', valor: s.diff });
+  if (s.time_p)
+    items.push({ label: 'Perdendo', valor: s.time_p, cls: 'alerta' });
+  if (s.diff_g != null)
+    items.push({ label: 'Desvantagem', valor: s.diff_g + ' gol(s)', cls: 'alerta' });
+  if (s.taxa != null)
+    items.push({ label: 'Taxa', valor: s.taxa + '%' });
+  if (s.min_sem != null)
+    items.push({ label: 'Min sem corner', valor: s.min_sem + '\'', cls: 'info' });
+  if (s.avg_casa != null)
+    items.push({ label: 'Média casa', valor: s.avg_casa, cls: 'info' });
+  if (s.avg_fora != null)
+    items.push({ label: 'Média fora', valor: s.avg_fora, cls: 'info' });
+  if (s.h2h_media != null)
+    items.push({ label: 'H2H médio', valor: s.h2h_media, cls: 'info' });
+
+  if (items.length === 0) return '';
+
+  return `<div class="card-dados">
+    ${items.map(it => `
+      <div class="dado-item">
+        <span class="dado-label">${it.label}</span>
+        <span class="dado-valor ${it.cls || ''}">${it.valor}</span>
+      </div>`).join('')}
+  </div>`;
+}
+
+function renderRecomendacao(s) {
+  let icone = '', texto = '', detalhe = '';
+
+  switch (s.tipo) {
+    case 'OVER':
+      icone = '📈'; texto = `Entrada: OVER ${s.linha} Escanteios`;
+      detalhe = s.in_janela ? 'Dentro da janela ideal de entrada' : 'Verifique a odd antes de entrar';
+      break;
+    case 'UNDER':
+      icone = '📉'; texto = `Entrada: UNDER ${s.linha} Escanteios`;
+      detalhe = 'Jogo com ritmo baixo — aguarde as odds subirem';
+      break;
+    case 'PRE_OVER':
+      icone = '📋'; texto = `Pré-jogo: OVER ${s.linha} Escanteios`;
+      detalhe = 'Entre antes do jogo começar para aproveitar odds melhores';
+      break;
+    case 'PRE_UNDER':
+      icone = '📋'; texto = `Pré-jogo: UNDER ${s.linha} Escanteios`;
+      detalhe = 'Dados históricos sugerem jogo com poucos corners';
+      break;
+    case 'PRE_AMBOS_ALTO':
+      icone = '🔥'; texto = 'Ambos os times geram muitos escanteios';
+      detalhe = 'Cenário ideal para Over alto no pré-jogo';
+      break;
+    case 'MOMENTUM':
+      icone = '🌊'; texto = 'Onda ativa — próximo escanteio iminente';
+      detalhe = s.time_mom ? `${s.time_mom} lidera o momentum` : 'Escanteios em sequência';
+      break;
+    case 'PRESSAO':
+      icone = '🔥'; texto = `${s.time_pressao} pressiona forte`;
+      detalhe = 'Escanteio a favor provável. Monitore ao vivo';
+      break;
+    case 'QUENTE':
+      icone = '🔥'; texto = `Jogo quente — projeção de ${s.projecao} corners`;
+      detalhe = 'Odds de OVER altas caindo rápido — entry rápida';
+      break;
+    case 'DOMINIO':
+      icone = '👑'; texto = `${s.time_dom} domina os escanteios`;
+      detalhe = `${s.esc_dom} x ${s.esc_out} — Over individual ou Handicap`;
+      break;
+    case 'HANDICAP':
+      icone = '📊'; texto = `Handicap ${s.time_f}`;
+      detalhe = `Diferença de ${s.diff} escanteios — Hcp -1.5 ou -2.5`;
+      break;
+    case 'TEMPO2':
+      icone = '⚡'; texto = '2º tempo acelerando';
+      detalhe = 'Over ao vivo com projeção favorável';
+      break;
+    case 'DESESPERO':
+      icone = '😤'; texto = `${s.time_p} vai pressionar`;
+      detalhe = `Perdendo por ${s.diff_g} gol(s) — escanteios nos minutos finais`;
+      break;
+    case 'SECA':
+      icone = '🏜️'; texto = `${s.min_sem}min sem escanteio`;
+      detalhe = 'Under lucrativo OU explosão iminente — acompanhe';
+      break;
+    case 'BLOQUEIOS':
+      icone = '🛡️'; texto = 'Chutes bloqueados gerando corners';
+      detalhe = 'Próximo escanteio é questão de tempo';
+      break;
+    case 'OVER_1T':
+      icone = '🔔'; texto = `Over ${s.linha} no 1º Tempo`;
+      detalhe = 'Ritmo alto na primeira etapa';
+      break;
+    case 'UNDER_1T':
+      icone = '🔕'; texto = `Under ${s.linha} no 1º Tempo`;
+      detalhe = 'Jogo parado — over improvável antes do intervalo';
+      break;
+    default:
+      return '';
+  }
+
+  return `<div class="card-recomendacao">
+    <span class="recom-icon">${icone}</span>
+    <div>
+      <div class="recom-text">${texto}</div>
+      <div class="recom-detalhe">${detalhe}</div>
+    </div>
+  </div>`;
+}
+
+function renderAgenda(s, idx) {
+  const delay = Math.min(idx * 40, 400);
+  const jogos = s.jogos || [];
+
+  const ligasMap = {};
+  jogos.forEach(j => {
+    if (!ligasMap[j.liga]) ligasMap[j.liga] = [];
+    ligasMap[j.liga].push(j);
+  });
+
+  const jogosHtml = Object.entries(ligasMap).slice(0, 8).map(([liga, jgs]) => `
+    <div class="agenda-liga-header">${escHtml(liga)}</div>
+    ${jgs.slice(0, 6).map(j => {
+      const cls = j.urgencia === 'iminente' ? 'iminente' : j.urgencia === 'breve' ? 'breve' : 'normal';
+      return `<div class="agenda-jogo">
+        <span class="agenda-times">${escHtml(j.casa)} × ${escHtml(j.fora)}</span>
+        <span class="agenda-hora ${cls}">${j.horario}</span>
+      </div>`;
+    }).join('')}
+  `).join('');
+
+  return `
+<div class="signal-card card-agenda" style="animation-delay:${delay}ms">
+  <div class="signal-icon-col">
+    <div class="signal-icon" style="background:var(--blue-bg);border-color:var(--blue)30;font-size:18px">📅</div>
+    <div class="signal-time">${s.horario}</div>
+  </div>
+  <div class="card-inner" style="border-color:rgba(66,165,245,0.2)">
+    <div style="padding:14px 16px 0">
+      <div class="agenda-titulo">
+        📅 Agenda do Dia — ${s.data}
+        <span style="font-size:11px;color:var(--muted);font-family:var(--font-mono);font-weight:400">${jogos.length} jogos</span>
+      </div>
+    </div>
+    <div style="padding:0 16px 16px" class="agenda-grid">
+      ${jogosHtml}
+      ${jogos.length > 48 ? `<div style="font-size:11px;color:var(--dim);padding:6px 0">... e mais ${jogos.length - 48} jogos</div>` : ''}
+    </div>
+    <div style="padding:10px 16px;border-top:1px solid var(--border);background:var(--blue-bg)">
+      <span style="font-size:12px;color:var(--blue)">📋 Sinais pré-jogo serão enviados conforme os jogos se aproximam</span>
+    </div>
+  </div>
+</div>`;
+}
+
+// ── HELPERS VISUAIS ──
+function tipoVisual(tipo) {
+  const mapa = {
+    OVER:        ['#00e676', 'rgba(0,230,118,0.1)', '📈'],
+    UNDER:       ['#ff4757', 'rgba(255,71,87,0.1)', '📉'],
+    PRE_OVER:    ['#42a5f5', 'rgba(66,165,245,0.1)', '📋'],
+    PRE_UNDER:   ['#42a5f5', 'rgba(66,165,245,0.1)', '📋'],
+    PRE_AMBOS_ALTO: ['#42a5f5', 'rgba(66,165,245,0.1)', '🔥'],
+    MOMENTUM:    ['#ffa726', 'rgba(255,167,38,0.1)', '🌊'],
+    PRESSAO:     ['#ff4757', 'rgba(255,71,87,0.1)', '🔥'],
+    QUENTE:      ['#ffa726', 'rgba(255,167,38,0.1)', '🔥'],
+    DOMINIO:     ['#ab47bc', 'rgba(171,71,188,0.1)', '👑'],
+    HANDICAP:    ['#ab47bc', 'rgba(171,71,188,0.1)', '📊'],
+    TEMPO2:      ['#26c6da', 'rgba(38,198,218,0.1)', '⚡'],
+    DESESPERO:   ['#ff4757', 'rgba(255,71,87,0.1)', '😤'],
+    SECA:        ['#7a7f8e', 'rgba(122,127,142,0.1)', '🏜️'],
+    BLOQUEIOS:   ['#26c6da', 'rgba(38,198,218,0.1)', '🛡️'],
+    FORA_ALVO:   ['#26c6da', 'rgba(38,198,218,0.1)', '🎯'],
+    OVER_1T:     ['#00e676', 'rgba(0,230,118,0.1)', '🔔'],
+    UNDER_1T:    ['#ff4757', 'rgba(255,71,87,0.1)', '🔕'],
+    AGENDA:      ['#42a5f5', 'rgba(66,165,245,0.1)', '📅'],
+  };
+  return mapa[tipo] || ['#7a7f8e', 'rgba(122,127,142,0.1)', '⚡'];
+}
+
+function labelTipo(tipo) {
+  const mapa = {
+    OVER: 'Over Escanteios', UNDER: 'Under Escanteios',
+    PRE_OVER: 'Pré-jogo Over', PRE_UNDER: 'Pré-jogo Under',
+    PRE_AMBOS_ALTO: 'Pré-jogo Ambos Alto',
+    MOMENTUM: 'Onda de Escanteios', PRESSAO: 'Pressão Ofensiva',
+    QUENTE: 'Jogo Quente', DOMINIO: 'Domínio', HANDICAP: 'Handicap',
+    TEMPO2: '2º Tempo Forte', DESESPERO: 'Time Desesperado',
+    SECA: 'Seca de Escanteios', BLOQUEIOS: 'Chutes Bloqueados',
+    FORA_ALVO: 'Chutes Fora do Alvo', OVER_1T: 'Over 1º Tempo',
+    UNDER_1T: 'Under 1º Tempo', AGENDA: 'Agenda do Dia',
+  };
+  return mapa[tipo] || tipo;
+}
+
+function confVisual(conf) {
+  if (conf >= 85) return ['var(--red)', 'ALTA'];
+  if (conf >= 70) return ['var(--amber)', 'MÉDIA+'];
+  return ['var(--blue)', 'MODERADA'];
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── FILTROS ──
+function setFilter(cat) {
+  filtroAtivo = cat;
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.filter === cat);
+  });
+  atualizarTimeline(0);
+}
+
+// ── STATUS ──
+function setOnline(online, msg) {
+  const dot = document.getElementById('botDot');
+  const status = document.getElementById('botStatus');
+  if (online) {
+    dot.classList.remove('off');
+    status.textContent = 'Palpites ao vivo';
+  } else {
+    dot.classList.add('off');
+    status.textContent = msg || 'Offline';
+  }
+}
+
+// ── TOAST ──
+function mostrarToast(msg, tipo = 'green') {
+  const container = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.style.borderLeftColor = tipo === 'green' ? 'var(--green)' : 'var(--amber)';
+  t.innerHTML = (tipo === 'green' ? '🔔 ' : '⚠️ ') + msg;
+  container.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 350); }, 3000);
+}
+
+// ── RELÓGIO ──
+function atualizarRelogio() {
+  const agora = new Date();
+  // UTC-3 = Brasília
+  const brt = new Date(agora.getTime() - (agora.getTimezoneOffset() + 180) * 60000);
+  document.getElementById('headerTime').textContent =
+    brt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ' · Brasília';
+}
+
+// ── CONFIGURAR URL MANUALMENTE ──
+function configurarUrl() {
+  const atual = localStorage.getItem('corneredge_api_url') || API_URL || '';
+  const nova = prompt(
+    '🔗 URL do bot Railway\n\n' +
+    'Cole aqui a URL pública do seu projeto Railway.\n' +
+    'Deve terminar com /sinais\n\n' +
+    'Atual: ' + (atual || '(não configurada)'),
+    atual
+  );
+  if (nova === null) return; // cancelou
+  if (!nova || !nova.startsWith('http')) {
+    alert('❌ URL inválida. Deve começar com https://');
+    return;
+  }
+  const urlFinal = nova.trim().endsWith('/sinais')
+    ? nova.trim()
+    : nova.trim().replace(/\/$/, '') + '/sinais';
+  localStorage.setItem('corneredge_api_url', urlFinal);
+  alert('✅ URL salva:\n' + urlFinal + '\n\nA página vai recarregar agora.');
+  window.location.reload();
+}
+
+// ══════════════════════════════════════════════════════
+//  SISTEMA DE ABAS — Escanteios / Gols
+// ══════════════════════════════════════════════════════
+
+let abaAtiva = 'escanteios';
+let todosOsGols = [];
+let tierFiltroAtivo = 'todos';
+let golsAutoRefresh = null;
+
+// URL da API de gols — mesmo Railway, endpoint diferente
+const API_URL_GOLS = API_URL ? API_URL.replace('/sinais', '/gols') : null;
+
+function setTab(tab) {
+  abaAtiva = tab;
+  const btnEsc  = document.getElementById('tab-esc');
+  const btnGols = document.getElementById('tab-gols');
+  const painelEsc  = document.getElementById('painel-escanteios');
+  const painelGols = document.getElementById('painel-gols');
+
+  if (tab === 'escanteios') {
+    btnEsc.className  = 'tab-btn active-esc';
+    btnGols.className = 'tab-btn';
+    painelEsc.style.display  = '';
+    painelGols.style.display = 'none';
+  } else {
+    btnGols.className = 'tab-btn active-gols';
+    btnEsc.className  = 'tab-btn';
+    painelGols.style.display = '';
+    painelEsc.style.display  = 'none';
+    fetchGols();
+  }
+}
+
+// ── FETCH GOLS ──
+async function fetchGols() {
+  if (!API_URL_GOLS) return;
+  try {
+    const res = await fetch(API_URL_GOLS + '?t=' + Date.now(), { cache: 'no-store', mode: 'cors' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const dados = await res.json();
+    todosOsGols = dados.sinais || [];
+    renderGols();
+    atualizarBadgesGols();
+  } catch (e) {
+    console.warn('API gols offline:', e.message);
+  }
+}
+
+// ── FILTRO DE TIER ──
+function setTierFilter(tier) {
+  tierFiltroAtivo = tier;
+  document.querySelectorAll('.gol-tier-filter').forEach(b => {
+    const ativo = b.dataset.tier === tier;
+    b.style.opacity = ativo ? '1' : '0.6';
+    b.style.fontWeight = ativo ? '600' : '400';
+  });
+  renderGols();
+}
+
+// ── RENDERIZAR FEED DE GOLS ──
+function renderGols() {
+  const feed = document.getElementById('golsFeed');
+  const lista = tierFiltroAtivo === 'todos'
+    ? todosOsGols
+    : todosOsGols.filter(g => g.tier === tierFiltroAtivo);
+
+  if (lista.length === 0) {
+    feed.innerHTML = `
+      <div class="gols-empty">
+        <div class="gols-empty-icon">⚽</div>
+        <div class="gols-empty-title">${tierFiltroAtivo === 'todos' ? 'Bot de Gols conectado' : 'Nenhum sinal ' + tierFiltroAtivo}</div>
+        <div class="gols-empty-desc">
+          ${tierFiltroAtivo === 'todos'
+            ? 'Os sinais aparecem aqui automaticamente.<br>Varredura a cada 90 segundos em mais de 60 ligas.'
+            : 'Tente outro filtro ou aguarde o próximo ciclo de análise.'}
+        </div>
+      </div>`;
+    return;
+  }
+  feed.innerHTML = lista.map((g, i) => renderGolCard(g, i)).join('');
+}
+
+// ── CARD DE GOL ──
+function renderGolCard(g, idx) {
+  const delay = Math.min(idx * 35, 350);
+  const p = g.probs || {};
+  const mkt = g.mkt || {};
+  const h2h = g.h2h || null;
+
+  // Tier visual
+  const tierIcon = { ELITE: '🔥🔥', QUENTE: '🔥', MORNO: '⚡', VIGIAR: '👀' }[g.tier] || '';
+  const tierLabel = { ELITE: 'Elite — Máxima Confiança', QUENTE: 'Quente — Alta Confiança', MORNO: 'Morno — Boa Probabilidade', VIGIAR: 'Vigiar — Monitorar' }[g.tier] || g.tier;
+
+  // Data/hora
+  const dt = g.dt ? new Date(g.dt) : null;
+  const hrJogo = dt ? dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+  const dtJogo = dt ? dt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '--/--';
+
+  // Forma
+  const renderForma = (forma) => {
+    if (!forma) return '<span style="color:var(--dim);font-size:11px">—</span>';
+    const trad = { W: ['V','#1db954'], D: ['E','#ffa726'], L: ['D','#ff4757'] };
+    return (forma || '').split('').map(c => {
+      const [l, cor] = trad[c] || [c, 'var(--muted)'];
+      return `<span class="gol-forma-letra" style="background:${cor}22;color:${cor}">${l}</span>`;
+    }).join('');
+  };
+
+  // Cor da probabilidade
+  const corProb = (v) => v >= 0.65 ? 'var(--green)' : v >= 0.50 ? 'var(--amber)' : v >= 0.35 ? 'var(--blue)' : 'var(--muted)';
+
+  // Score bar (máx 10)
+  const scorePct = Math.min((g.pontuacao / 10) * 100, 100);
+
+  // Mercado ícone
+  const mktIcone = () => {
+    const nome = (mkt.nome || '').toLowerCase();
+    if (nome.includes('mais')) return '📈';
+    if (nome.includes('menos')) return '📉';
+    if (nome.includes('ambas')) return '🎯';
+    return '⚽';
+  };
+
+  // Tags especiais
+  const tags = [];
+  if (g.classico) tags.push({ label: 'Clássico', cor: 'var(--red)', bg: 'var(--red-bg)' });
+  if (g.decisivo) tags.push({ label: 'Decisivo', cor: 'var(--amber)', bg: 'var(--amber-bg)' });
+
+  const tagsHtml = tags.map(t =>
+    `<span class="gol-tag" style="background:${t.bg};color:${t.cor}">${t.label}</span>`
+  ).join('');
+
+  // EV formatado
+  const evStr = mkt.ev !== undefined ? (mkt.ev >= 0 ? '+' : '') + (mkt.ev * 100).toFixed(1) + '%' : '—';
+  const evCor = mkt.ev > 0 ? 'var(--green)' : 'var(--red)';
+
+  return `
+<div class="gol-card ${g.tier === 'ELITE' ? 'tier-elite' : ''}" style="animation-delay:${delay}ms">
+
+  <div class="gol-header">
+    <div>
+      <span class="gol-tier-badge tier-${escHtml(g.tier)}">${tierIcon} ${escHtml(tierLabel)}</span>
+    </div>
+    <div class="gol-liga-info">
+      <div class="gol-liga-nome">${escHtml(g.liga || '')} · ${escHtml(g.pais || '')}</div>
+      <div class="gol-horario">📅 ${dtJogo} às ${hrJogo}</div>
+    </div>
+  </div>
+
+  <div class="gol-times">
+    <div class="gol-confronto">
+      <span>${escHtml(g.casa || '?')}</span>
+      <span class="gol-vs">×</span>
+      <span>${escHtml(g.fora || '?')}</span>
+    </div>
+    ${tagsHtml ? `<div class="gol-tags">${tagsHtml}</div>` : ''}
+  </div>
+
+  <div class="gol-lambda">
+    <div>
+      <div class="gol-stat-label">Gols esperados</div>
+      <div class="gol-lambda-sub">${(g.lh || 0).toFixed(2)} casa + ${(g.la || 0).toFixed(2)} fora</div>
+    </div>
+    <div style="margin-left:auto;text-align:right">
+      <div class="gol-lambda-val">${(g.lt || 0).toFixed(2)}</div>
+      <div class="gol-lambda-sub">λ total</div>
+    </div>
+  </div>
+
+  <div class="gol-stats">
+    <div class="gol-stat-time">
+      <div class="gol-stat-label">${escHtml(g.casa || 'Casa')}</div>
+      <div class="gol-stat-row">
+        <span class="gol-stat-chip">GF ${(g.hgf || 0).toFixed(2)}</span>
+        <span class="gol-stat-chip">GA ${(g.hga || 0).toFixed(2)}</span>
+      </div>
+      <div class="gol-forma">${renderForma(g.hforma)}</div>
+    </div>
+    <div class="gol-stat-time">
+      <div class="gol-stat-label">${escHtml(g.fora || 'Fora')}</div>
+      <div class="gol-stat-row">
+        <span class="gol-stat-chip">GF ${(g.agf || 0).toFixed(2)}</span>
+        <span class="gol-stat-chip">GA ${(g.aga || 0).toFixed(2)}</span>
+      </div>
+      <div class="gol-forma">${renderForma(g.aforma)}</div>
+    </div>
+  </div>
+
+  <div class="gol-probs">
+    <div class="gol-probs-titulo">Probabilidades calculadas</div>
+    <div class="gol-probs-grid">
+      <div class="gol-prob-item">
+        <div class="gol-prob-nome">+1.5 gols</div>
+        <div class="gol-prob-val" style="color:${corProb(p.o15||0)}">${((p.o15||0)*100).toFixed(0)}%</div>
+      </div>
+      <div class="gol-prob-item">
+        <div class="gol-prob-nome">+2.5 gols</div>
+        <div class="gol-prob-val" style="color:${corProb(p.o25||0)}">${((p.o25||0)*100).toFixed(0)}%</div>
+      </div>
+      <div class="gol-prob-item">
+        <div class="gol-prob-nome">+3.5 gols</div>
+        <div class="gol-prob-val" style="color:${corProb(p.o35||0)}">${((p.o35||0)*100).toFixed(0)}%</div>
+      </div>
+      <div class="gol-prob-item">
+        <div class="gol-prob-nome">Ambas marcam</div>
+        <div class="gol-prob-val" style="color:${corProb(p.ambas_sim||0)}">${((p.ambas_sim||0)*100).toFixed(0)}%</div>
+      </div>
+      <div class="gol-prob-item">
+        <div class="gol-prob-nome">-2.5 gols</div>
+        <div class="gol-prob-val" style="color:${corProb(p.u25||0)}">${((p.u25||0)*100).toFixed(0)}%</div>
+      </div>
+      <div class="gol-prob-item">
+        <div class="gol-prob-nome">-1.5 gols</div>
+        <div class="gol-prob-val" style="color:${corProb(p.u15||0)}">${((p.u15||0)*100).toFixed(0)}%</div>
+      </div>
+    </div>
+  </div>
+
+  ${h2h ? `
+  <div class="gol-h2h">
+    <span class="gol-h2h-chip">H2H <strong>${h2h.n}</strong> jogos</span>
+    <span class="gol-h2h-chip">Média <strong>${(h2h.media||0).toFixed(1)}</strong> gols</span>
+    <span class="gol-h2h-chip">+2.5 em <strong>${((h2h.o25||0)*100).toFixed(0)}%</strong></span>
+    <span class="gol-h2h-chip">Ambas <strong>${((h2h.ambas||0)*100).toFixed(0)}%</strong></span>
+  </div>` : ''}
+
+  <div class="gol-mercado">
+    <div class="gol-mercado-icon">${mktIcone()}</div>
+    <div>
+      <div class="gol-mercado-nome">${escHtml(mkt.nome || '—')}</div>
+      <div class="gol-mercado-detalhe">
+        <span class="gol-mercado-chip">Prob <strong>${((mkt.prob||0)*100).toFixed(1)}%</strong></span>
+        <span class="gol-mercado-chip">Odd <strong>${(mkt.odd||0).toFixed(2)}</strong></span>
+        <span class="gol-mercado-chip">EV <strong style="color:${evCor}">${evStr}</strong></span>
+        ${g.stake ? `<span class="gol-mercado-chip">Stake <strong>R$ ${(g.stake||0).toFixed(0)}</strong></span>` : ''}
+      </div>
+    </div>
+  </div>
+
+  <div class="gol-score">
+    <div>
+      <div class="gol-score-label">Pontuação do sinal</div>
+    </div>
+    <div class="gol-score-bar-wrap">
+      <div class="gol-score-bar">
+        <div class="gol-score-fill" style="width:${scorePct}%"></div>
+      </div>
+    </div>
+    <div class="gol-score-val">${(g.pontuacao||0).toFixed(1)}</div>
+  </div>
+
+</div>`;
+}
+
+function atualizarBadgesGols() {
+  document.getElementById('tab-badge-gols').textContent = todosOsGols.length;
+  const tiers = ['ELITE', 'QUENTE', 'MORNO', 'VIGIAR'];
+  const counts = { todos: todosOsGols.length };
+  tiers.forEach(t => {
+    counts[t] = todosOsGols.filter(g => g.tier === t).length;
+    const el = document.getElementById('gf-' + t);
+    if (el) el.textContent = counts[t];
+  });
+  const elTodos = document.getElementById('gf-todos');
+  if (elTodos) elTodos.textContent = todosOsGols.length;
+}
+
+// Atualiza badge da aba escanteios quando chegar dado
+function atualizarBadgeEsc() {
+  document.getElementById('tab-badge-esc').textContent = todosOsSinais.length;
+}
+
+// ── INICIAR ──
+setInterval(atualizarRelogio, 1000);
+atualizarRelogio();
+
+// Avisa se URL não configurada
+if (!API_URL) {
+  setOnline(false, '⚙ Configure a URL');
+  mostrarToast('URL do Railway não configurada. Verifique o código.', 'amber');
+} else {
+  fetchSinais();
+  autoRefreshTimer = setInterval(fetchSinais, REFRESH_INTERVAL);
+  // Gols atualiza a cada 30s (análise é menos frequente que sinais ao vivo)
+  golsAutoRefresh = setInterval(() => {
+    if (abaAtiva === 'gols') fetchGols();
+  }, 30000);
+  setTimeout(() => {
+    mostrarToast('Auto-atualização ativa a cada 15s', 'amber');
+  }, 1500);
+}
+</script>
+</body>
+</html>
