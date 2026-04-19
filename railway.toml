@@ -1,0 +1,7 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "python -u bot_escanteios_v4.py"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
