@@ -1,0 +1,3446 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StatFlow — Análise Estatística de Futebol em Tempo Real</title>
+<meta name="description" content="Plataforma de análise estatística de futebol. Sinais de escanteios e gols com distribuição de Poisson, critério de Kelly e EV calculado. 60+ ligas. Tempo real.">
+<meta property="og:title" content="StatFlow — Análise Estatística de Futebol em Tempo Real">
+<meta property="og:description" content="Sinais com EV positivo calculado por Poisson. 60+ ligas monitoradas a cada 90 segundos. Gratuito.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="StatFlow — Análise Estatística de Futebol">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Bricolage+Grotesque:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════
+   DESIGN TOKENS — StatFlow Premium
+   ═══════════════════════════════════════ */
+:root {
+  /* Backgrounds */
+  --bg-base:    #060810;
+  --bg-surface: #0B0F1A;
+  --bg-card:    #0F1628;
+  --bg-hover:   #141B30;
+  --bg-active:  #192038;
+
+  /* Borders */
+  --border:     rgba(255,255,255,0.06);
+  --border-md:  rgba(255,255,255,0.10);
+  --border-lg:  rgba(255,255,255,0.15);
+
+  /* Accent Colors */
+  --green:      #00FF87;
+  --green-dim:  #00C868;
+  --green-glow: rgba(0,255,135,0.15);
+  --green-bg:   rgba(0,255,135,0.06);
+
+  --orange:     #FF6B2B;
+  --orange-dim: #E05520;
+  --orange-glow:rgba(255,107,43,0.15);
+  --orange-bg:  rgba(255,107,43,0.06);
+
+  --red:        #FF4560;
+  --red-glow:   rgba(255,69,96,0.15);
+  --red-bg:     rgba(255,69,96,0.06);
+
+  --blue:       #38BDF8;
+  --blue-dim:   #0EA5E9;
+  --blue-glow:  rgba(56,189,248,0.15);
+  --blue-bg:    rgba(56,189,248,0.06);
+
+  --purple:     #A78BFA;
+  --purple-bg:  rgba(167,139,250,0.06);
+  --purple-glow:rgba(167,139,250,0.15);
+
+  --amber:      #FCD34D;
+  --amber-bg:   rgba(252,211,77,0.06);
+
+  --cyan:       #22D3EE;
+  --cyan-bg:    rgba(34,211,238,0.06);
+
+  /* Text */
+  --text-1: #F8FAFC;
+  --text-2: #CBD5E1;
+  --text-3: #7C8FA6;
+  --text-4: #334155;
+
+  /* Fonts */
+  --font-ui:      'Space Grotesk', sans-serif;
+  --font-display: 'Bricolage Grotesque', sans-serif;
+  --font-mono:    'JetBrains Mono', monospace;
+
+  /* Radii */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  /* Transitions */
+  --ease: cubic-bezier(0.16,1,0.3,1);
+  --t:    200ms;
+  --t-lg: 350ms;
+}
+
+/* ── RESET ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg-base);
+  color: var(--text-1);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── ATMOSPHERIC BACKGROUND ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 15% 0%, rgba(0,255,135,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 85% 100%, rgba(56,189,248,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 50% 50%, rgba(167,139,250,0.02) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Subtle grid */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ═══════════════════════════════════════
+   LOADING BAR
+   ═══════════════════════════════════════ */
+.loading-bar {
+  position: fixed;
+  top: 0; left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--green), var(--cyan), var(--blue));
+  z-index: 9999;
+  transition: width 0.3s var(--ease);
+  box-shadow: 0 0 10px var(--green-glow);
+}
+
+/* ═══════════════════════════════════════
+   HEADER
+   ═══════════════════════════════════════ */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  height: 56px;
+  background: rgba(6,8,16,0.80);
+  backdrop-filter: blur(24px) saturate(1.5);
+  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  border-bottom: 1px solid var(--border);
+}
+
+.header-inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 20px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+/* Logo */
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+
+.logo-mark {
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, var(--green), var(--cyan));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.logo-mark::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.2));
+}
+
+.logo-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--text-1);
+  letter-spacing: -0.3px;
+}
+
+.logo-beta {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--green);
+  background: var(--green-bg);
+  border: 1px solid rgba(0,255,135,0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* Live badge */
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: rgba(255,69,96,0.08);
+  border: 1px solid rgba(255,69,96,0.2);
+  border-radius: 20px;
+  padding: 4px 12px 4px 9px;
+  cursor: default;
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--red);
+  animation: live-ping 1.5s ease-out infinite;
+  flex-shrink: 0;
+}
+
+.live-dot.off { background: var(--text-3); animation: none; }
+
+@keyframes live-ping {
+  0%   { box-shadow: 0 0 0 0 rgba(255,69,96,0.6); }
+  70%  { box-shadow: 0 0 0 8px rgba(255,69,96,0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,69,96,0); }
+}
+
+.live-label {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--red);
+  letter-spacing: 1.5px;
+}
+
+.live-label.off { color: var(--text-3); }
+
+.live-count {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: rgba(255,69,96,0.6);
+  padding-left: 7px;
+  border-left: 1px solid rgba(255,69,96,0.15);
+}
+
+/* Header right */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.som-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-sm);
+  color: var(--text-3);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: all var(--t) var(--ease);
+}
+
+.som-btn:hover { border-color: var(--amber); color: var(--amber); }
+.som-btn.ativo { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+
+.header-clock {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  padding: 5px 10px;
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+}
+
+/* ═══════════════════════════════════════
+   TICKER
+   ═══════════════════════════════════════ */
+.ticker-wrap {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.ticker-tag {
+  position: absolute;
+  left: 0;
+  z-index: 2;
+  background: var(--green);
+  color: #000;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  padding: 0 12px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.ticker-track {
+  display: flex;
+  animation: ticker 40s linear infinite;
+  padding-left: 110px;
+  white-space: nowrap;
+}
+
+.ticker-track:hover { animation-play-state: paused; }
+
+.ticker-item {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-2);
+  padding: 0 24px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ticker-score { color: var(--green); font-weight: 600; }
+.ticker-min   { color: var(--text-3); font-size: 10px; }
+.ticker-dot   { color: var(--border-md); }
+
+@keyframes ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ═══════════════════════════════════════
+   KPI BAR
+   ═══════════════════════════════════════ */
+.kpi-bar {
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.kpi-inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.kpi-inner::-webkit-scrollbar { display: none; }
+
+.kpi-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px 12px 0;
+  margin-right: 24px;
+  border-right: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.kpi-item:last-child { border-right: none; margin-right: 0; }
+
+.kpi-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.kpi-body { display: flex; flex-direction: column; }
+
+.kpi-label {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin-bottom: 1px;
+}
+
+.kpi-value {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+
+.kpi-delta {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-3);
+  margin-top: 1px;
+}
+
+/* ═══════════════════════════════════════
+   LAYOUT PRINCIPAL
+   ═══════════════════════════════════════ */
+.layout {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: 220px 1fr 260px;
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ═══════════════════════════════════════
+   SIDEBAR
+   ═══════════════════════════════════════ */
+.sidebar {
+  position: sticky;
+  top: 90px;
+  height: fit-content;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sidebar-section {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.sidebar-head {
+  padding: 10px 14px 8px;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  border-bottom: 1px solid var(--border);
+}
+
+.filter-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 9px 14px;
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all var(--t) var(--ease);
+  text-align: left;
+  position: relative;
+}
+
+.filter-btn::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: var(--green);
+  border-radius: 0 2px 2px 0;
+  opacity: 0;
+  transition: opacity var(--t) var(--ease);
+}
+
+.filter-btn:hover { background: var(--bg-hover); color: var(--text-1); }
+.filter-btn.active { background: var(--green-bg); color: var(--green); }
+.filter-btn.active::before { opacity: 1; }
+
+.filter-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.filter-badge {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  background: var(--bg-active);
+  color: var(--text-3);
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 22px;
+  text-align: center;
+  transition: all var(--t);
+}
+
+.filter-btn.active .filter-badge {
+  background: rgba(0,255,135,0.12);
+  color: var(--green);
+}
+
+/* Legend */
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.legend-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Guide */
+.guide-item {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.55;
+}
+
+.guide-item:last-child { border-bottom: none; }
+.guide-item strong { color: var(--text-1); font-weight: 500; }
+
+.sidebar-warn {
+  padding: 12px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  font-size: 11px;
+  color: var(--text-3);
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* ═══════════════════════════════════════
+   ABAS (TABS)
+   ═══════════════════════════════════════ */
+.tabs-nav {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+.tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  color: var(--text-3);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--t) var(--ease);
+}
+
+.tab-btn:hover { color: var(--text-1); background: var(--bg-hover); }
+
+.tab-btn.active-esc {
+  background: var(--green-bg);
+  color: var(--green);
+  border: 1px solid rgba(0,255,135,0.15);
+  box-shadow: 0 0 20px rgba(0,255,135,0.05);
+}
+
+.tab-btn.active-gols {
+  background: var(--orange-bg);
+  color: var(--orange);
+  border: 1px solid rgba(255,107,43,0.2);
+}
+
+.tab-btn.active-cartoes {
+  background: rgba(252,211,77,0.08);
+  color: var(--amber);
+  border: 1px solid rgba(252,211,77,0.2);
+}
+
+.tab-btn.active-resultado {
+  background: var(--blue-bg);
+  color: var(--blue);
+  border: 1px solid rgba(56,189,248,0.2);
+}
+
+/* Cards de cartões — tema âmbar */
+.cartao-card {
+  background: var(--bg-card);
+  border: 1px solid rgba(252,211,77,0.1);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  margin-bottom: 12px;
+  transition: all var(--t) var(--ease);
+  animation: slideIn var(--t-lg) var(--ease) forwards;
+  opacity: 0;
+}
+.cartao-card:hover {
+  border-color: rgba(252,211,77,0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3), 0 0 20px rgba(252,211,77,0.05);
+}
+.cartao-header {
+  padding: 12px 14px 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.cartao-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  border: 1px solid rgba(252,211,77,0.25);
+  background: rgba(252,211,77,0.08);
+  color: var(--amber);
+}
+.cartao-times { padding: 12px 14px 10px; }
+.cartao-confronto {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  letter-spacing: -0.2px;
+}
+.cartao-vs { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); }
+.cartao-liga { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+.cartao-lambda {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.cartao-lambda-val {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--amber);
+  letter-spacing: -0.5px;
+}
+.cartao-probs {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.cartao-prob-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 7px;
+  text-align: center;
+}
+.cartao-prob-nome { font-size: 9px; color: var(--text-3); margin-bottom: 3px; }
+.cartao-prob-val  { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
+.cartao-mercado {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  background: rgba(252,211,77,0.04);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.cartao-ia {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--purple-bg);
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.55;
+  font-style: italic;
+}
+
+/* Cards de resultado 1X2 — tema azul */
+.resultado-card {
+  background: var(--bg-card);
+  border: 1px solid rgba(56,189,248,0.1);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  margin-bottom: 12px;
+  transition: all var(--t) var(--ease);
+  animation: slideIn var(--t-lg) var(--ease) forwards;
+  opacity: 0;
+}
+.resultado-card:hover {
+  border-color: rgba(56,189,248,0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3), 0 0 20px rgba(56,189,248,0.05);
+}
+.resultado-header {
+  padding: 12px 14px 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.resultado-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.res-ELITE  { border-color: rgba(252,211,77,.3); background: rgba(252,211,77,.08); color: var(--amber); }
+.res-QUENTE { border-color: rgba(255,107,43,.3); background: rgba(255,107,43,.08); color: var(--orange); }
+.res-MORNO  { border-color: rgba(56,189,248,.3);  background: rgba(56,189,248,.08);  color: var(--blue); }
+.res-VIGIAR { border-color: var(--border-md); background: var(--bg-active); color: var(--text-2); }
+.resultado-times { padding: 12px 14px 10px; }
+.resultado-confronto {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-1);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  letter-spacing: -0.2px;
+}
+.resultado-probs-grid {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.res-prob-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 8px;
+  text-align: center;
+}
+.res-prob-nome { font-size: 9px; color: var(--text-3); margin-bottom: 3px; }
+.res-prob-val  { font-family: var(--font-display); font-size: 17px; font-weight: 700; }
+.resultado-mercado {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--blue-bg);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.resultado-score {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.resultado-score-bar { height: 3px; background: var(--bg-active); border-radius: 2px; overflow: hidden; flex: 1; }
+.resultado-score-fill { height: 100%; border-radius: 2px; background: linear-gradient(to right, var(--blue-dim), var(--blue)); transition: width .6s var(--ease); }
+
+.tab-badge {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  background: var(--bg-active);
+  color: var(--text-3);
+  padding: 1px 6px;
+  border-radius: 10px;
+}
+
+.tab-btn.active-esc .tab-badge {
+  background: rgba(0,255,135,0.12);
+  color: var(--green);
+}
+
+.tab-btn.active-gols .tab-badge {
+  background: rgba(255,107,43,0.12);
+  color: var(--orange);
+}
+
+/* ═══════════════════════════════════════
+   TIMELINE HEADER
+   ═══════════════════════════════════════ */
+.timeline-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  gap: 10px;
+}
+
+.timeline-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-1);
+  letter-spacing: -0.3px;
+}
+
+.timeline-sub {
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 1px;
+  font-family: var(--font-mono);
+}
+
+.refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-md);
+  color: var(--text-2);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: all var(--t) var(--ease);
+}
+
+.refresh-btn:hover { border-color: var(--green); color: var(--green); }
+.refresh-btn.spinning svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ═══════════════════════════════════════
+   TIMELINE FEED — vertical line
+   ═══════════════════════════════════════ */
+.timeline-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  position: relative;
+}
+
+.timeline-feed::before {
+  content: '';
+  position: absolute;
+  left: 19px;
+  top: 10px;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(to bottom, var(--border-md), var(--border), transparent);
+}
+
+/* ═══════════════════════════════════════
+   SIGNAL CARD — Premium redesign
+   ═══════════════════════════════════════ */
+.signal-card {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 0;
+  margin-bottom: 12px;
+  opacity: 0;
+  transform: translateY(12px);
+  animation: slideIn var(--t-lg) var(--ease) forwards;
+}
+
+@keyframes slideIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.signal-icon-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  z-index: 1;
+  padding-top: 12px;
+}
+
+.signal-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+
+.sig-time {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-3);
+  writing-mode: vertical-lr;
+  transform: rotate(180deg);
+  margin-top: 4px;
+  letter-spacing: 0.3px;
+}
+
+.card-inner {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  margin-left: 10px;
+  transition: all var(--t) var(--ease);
+  cursor: pointer;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.card-inner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.02) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.card-inner:hover {
+  border-color: var(--border-lg);
+  transform: translateX(3px);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+}
+
+/* Elite card glow */
+.signal-card.elite-card .card-inner {
+  border-color: rgba(252,211,77,0.3) !important;
+  box-shadow: 0 0 0 1px rgba(252,211,77,0.1), 0 0 30px rgba(252,211,77,0.05);
+  animation: eliteGlow 3s ease-in-out infinite, slideIn var(--t-lg) var(--ease) forwards;
+}
+
+@keyframes eliteGlow {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(252,211,77,0.1), 0 0 20px rgba(252,211,77,0.05); }
+  50%       { box-shadow: 0 0 0 1px rgba(252,211,77,0.3), 0 0 40px rgba(252,211,77,0.12); }
+}
+
+.elite-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  background: linear-gradient(90deg, rgba(252,211,77,0.08), rgba(255,107,43,0.05), rgba(252,211,77,0.08));
+  background-size: 200% 100%;
+  animation: shimmer 2.5s linear infinite;
+  border-bottom: 1px solid rgba(252,211,77,0.12);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--amber);
+  letter-spacing: 1px;
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.elite-fire {
+  display: inline-block;
+  animation: fireRock 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes fireRock {
+  from { transform: rotate(-8deg) scale(1); }
+  to   { transform: rotate(8deg) scale(1.1); }
+}
+
+/* Card top section */
+.card-top {
+  padding: 12px 14px 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* Tipo badge */
+.tipo-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  border: 1px solid transparent;
+  flex-shrink: 0;
+}
+
+/* Confiança badge */
+.conf-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.conf-pct {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.conf-label-sm {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Jogo info */
+.card-jogo {
+  padding: 0 14px 10px;
+}
+
+.card-teams {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-1);
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-placar {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--green);
+  margin-left: 6px;
+}
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.card-liga {
+  font-size: 11px;
+  color: var(--text-3);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-min-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Corners row */
+.card-corners {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px 10px;
+  flex-wrap: wrap;
+}
+
+.corner-box {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 4px 10px;
+}
+
+.corner-lbl {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.corner-val {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.corner-total {
+  font-size: 11px;
+  color: var(--text-2);
+  font-family: var(--font-mono);
+}
+
+/* Dados grid */
+.card-dados {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+}
+
+.dado-item { display: flex; flex-direction: column; gap: 2px; }
+
+.dado-lbl {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dado-val {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.dado-val.g { color: var(--green); }
+.dado-val.a { color: var(--amber); }
+.dado-val.b { color: var(--blue); }
+.dado-val.r { color: var(--red); }
+
+/* Confiança bar */
+.conf-section {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.conf-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 7px;
+}
+
+.conf-row-label {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.conf-row-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.conf-nivel {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+}
+
+.conf-num {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.conf-track {
+  height: 4px;
+  background: var(--bg-active);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.conf-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.7s var(--ease);
+}
+
+/* IA section */
+.card-ia {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--purple-bg);
+}
+
+.ia-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+.ia-lbl {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--purple);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.ia-txt {
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.55;
+  font-style: italic;
+}
+
+/* Recomendação */
+.card-recom {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border);
+  background: linear-gradient(135deg, rgba(0,255,135,0.04), rgba(34,211,238,0.02));
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.recom-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.recom-txt { font-size: 13px; color: var(--text-1); font-weight: 500; }
+.recom-sub { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+
+/* Countdown */
+.countdown-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--r-sm);
+  animation: countPulse 1.2s ease-in-out infinite;
+}
+
+.countdown-badge.urgent { background: var(--red-bg); border: 1px solid rgba(255,69,96,0.25); color: var(--red); }
+.countdown-badge.soon   { background: var(--amber-bg); border: 1px solid rgba(252,211,77,0.2); color: var(--amber); animation: none; }
+.countdown-badge.normal { background: var(--blue-bg); border: 1px solid rgba(56,189,248,0.2); color: var(--blue); animation: none; }
+
+@keyframes countPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+
+/* ═══════════════════════════════════════
+   AGENDA CARD
+   ═══════════════════════════════════════ */
+.agenda-card .card-inner {
+  border-color: rgba(56,189,248,0.15) !important;
+  background: linear-gradient(135deg, var(--bg-card), rgba(56,189,248,0.02));
+}
+
+/* ═══════════════════════════════════════
+   EMPTY STATE
+   ═══════════════════════════════════════ */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-3);
+}
+
+.empty-icon { font-size: 40px; margin-bottom: 14px; opacity: 0.4; }
+.empty-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+
+/* ═══════════════════════════════════════
+   FLASH NOTIFICATION
+   ═══════════════════════════════════════ */
+.sinal-flash {
+  position: fixed;
+  top: 68px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  z-index: 9998;
+  background: var(--bg-card);
+  border: 1px solid var(--green);
+  border-radius: var(--r-lg);
+  padding: 11px 18px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  box-shadow: 0 0 0 1px rgba(0,255,135,0.15), 0 8px 40px rgba(0,0,0,0.5), 0 0 30px rgba(0,255,135,0.08);
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  pointer-events: none;
+  min-width: 260px;
+  max-width: 420px;
+}
+
+.sinal-flash.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.flash-dot { width: 7px; height: 7px; border-radius: 50%; animation: live-ping 1.2s infinite; flex-shrink: 0; }
+.flash-dot.green { background: var(--green); }
+.flash-dot.amber { background: var(--amber); animation: live-ping 0.8s infinite; }
+.flash-txt  { font-size: 13px; font-weight: 500; color: var(--text-1); }
+.flash-sub  { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+
+/* ═══════════════════════════════════════
+   TOAST
+   ═══════════════════════════════════════ */
+.toast-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.toast {
+  background: var(--bg-card);
+  border: 1px solid var(--border-md);
+  border-radius: var(--r-md);
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--text-1);
+  animation: toastIn 0.3s var(--ease);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 280px;
+  border-left: 2px solid var(--green);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ═══════════════════════════════════════
+   PAINEL DIREITO
+   ═══════════════════════════════════════ */
+.right-panel {
+  position: sticky;
+  top: 90px;
+  height: fit-content;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+
+.panel-head {
+  padding: 10px 14px 8px;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Precisão */
+.prec-body {
+  padding: 16px 14px 12px;
+  text-align: center;
+}
+
+.prec-pct {
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--green), var(--cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -2px;
+}
+
+.prec-lbl { font-size: 11px; color: var(--text-3); margin-top: 4px; font-family: var(--font-mono); }
+
+.prec-bar {
+  height: 4px;
+  background: var(--bg-active);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 10px 14px 12px;
+}
+
+.prec-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--green-dim), var(--green));
+  transition: width 1s var(--ease);
+  box-shadow: 0 0 10px var(--green-glow);
+}
+
+.prec-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  border-top: 1px solid var(--border);
+}
+
+.prec-stat {
+  padding: 10px 0;
+  text-align: center;
+  border-right: 1px solid var(--border);
+}
+
+.prec-stat:last-child { border-right: none; }
+
+.prec-stat-val {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-1);
+}
+
+.prec-stat-lbl {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 1px;
+}
+
+/* Resumo ao vivo */
+.stat-mini {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  transition: background var(--t);
+}
+
+.stat-mini:last-child { border-bottom: none; }
+.stat-mini:hover { background: var(--bg-hover); }
+.stat-mini-label { font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+.stat-mini-val   { font-family: var(--font-display); font-size: 18px; font-weight: 700; }
+
+/* Tipos de sinal */
+.tipo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  transition: background var(--t);
+}
+
+.tipo-row:last-child { border-bottom: none; }
+.tipo-row:hover { background: var(--bg-hover); }
+.tipo-nome { display: flex; align-items: center; gap: 8px; color: var(--text-2); }
+
+.tipo-bar-wrap { display: flex; align-items: center; gap: 8px; }
+
+.tipo-bar {
+  width: 55px;
+  height: 3px;
+  background: var(--bg-active);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.tipo-bar-fill { height: 100%; border-radius: 2px; transition: width 0.6s var(--ease); }
+.tipo-count { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); min-width: 18px; text-align: right; }
+
+/* Dicas */
+.dica-item {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.dica-item:last-child { border-bottom: none; }
+
+.dica-tag {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  margin-bottom: 4px;
+  letter-spacing: 0.3px;
+}
+
+.dica-text { color: var(--text-3); }
+
+/* ═══════════════════════════════════════
+   GOLS HERO
+   ═══════════════════════════════════════ */
+.gols-hero {
+  background: linear-gradient(135deg, rgba(255,107,43,0.06), rgba(255,69,96,0.03));
+  border: 1px solid rgba(255,107,43,0.15);
+  border-radius: var(--r-xl);
+  padding: 20px;
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.gols-hero::before {
+  content: '⚽';
+  position: absolute;
+  right: -15px;
+  top: -15px;
+  font-size: 90px;
+  opacity: 0.04;
+  pointer-events: none;
+}
+
+.gols-hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--orange-bg);
+  color: var(--orange);
+  border: 1px solid rgba(255,107,43,0.2);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 9px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.gols-hero-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-1);
+  line-height: 1.25;
+  margin-bottom: 8px;
+  letter-spacing: -0.3px;
+}
+
+.gols-hero-title span { color: var(--orange); }
+
+.gols-hero-desc { font-size: 13px; color: var(--text-2); line-height: 1.65; margin-bottom: 14px; }
+
+.gols-pills { display: flex; gap: 7px; flex-wrap: wrap; }
+
+.gols-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-md);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.gols-pill strong { color: var(--text-1); }
+
+/* ═══════════════════════════════════════
+   GOLS CARDS
+   ═══════════════════════════════════════ */
+.gol-card {
+  background: var(--bg-card);
+  border: 1px solid rgba(255,107,43,0.1);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  margin-bottom: 12px;
+  transition: all var(--t) var(--ease);
+  animation: slideIn var(--t-lg) var(--ease) forwards;
+  opacity: 0;
+  position: relative;
+}
+
+.gol-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,107,43,0.02), transparent 60%);
+  pointer-events: none;
+}
+
+.gol-card:hover {
+  border-color: rgba(255,107,43,0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.3), 0 0 20px rgba(255,107,43,0.05);
+}
+
+.gol-card.tier-elite {
+  border-color: rgba(252,211,77,0.3) !important;
+  box-shadow: 0 0 30px rgba(252,211,77,0.05);
+}
+
+.gol-header {
+  padding: 12px 14px 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.gol-tier-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.tier-ELITE  { color: var(--amber);  background: var(--amber-bg);  border-color: rgba(252,211,77,0.25); }
+.tier-QUENTE { color: var(--orange); background: var(--orange-bg); border-color: rgba(255,107,43,0.25); }
+.tier-MORNO  { color: var(--blue);   background: var(--blue-bg);   border-color: rgba(56,189,248,0.25); }
+.tier-VIGIAR { color: var(--text-2); background: var(--bg-active); border-color: var(--border-md); }
+
+.gol-liga-info { text-align: right; flex-shrink: 0; }
+.gol-liga-nome { font-size: 11px; color: var(--text-3); max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gol-horario   { font-family: var(--font-mono); font-size: 11px; color: var(--orange); margin-top: 2px; }
+
+.gol-times { padding: 12px 14px 10px; }
+.gol-confronto { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text-1); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; letter-spacing: -0.2px; }
+.gol-vs { font-size: 11px; color: var(--text-3); font-family: var(--font-mono); flex-shrink: 0; }
+
+.gol-tags { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.gol-tag { font-size: 9px; font-family: var(--font-mono); font-weight: 600; padding: 1px 7px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.gol-lambda { padding: 10px 14px; border-top: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.gol-lambda-label { font-size: 11px; color: var(--text-2); white-space: nowrap; }
+.gol-lambda-val { font-family: var(--font-display); font-size: 24px; font-weight: 800; color: var(--orange); letter-spacing: -0.5px; }
+.gol-lambda-sub { font-size: 10px; color: var(--text-3); font-family: var(--font-mono); }
+
+.gol-stats { padding: 10px 14px; border-top: 1px solid var(--border); display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.gol-stat-time { display: flex; flex-direction: column; gap: 5px; }
+.gol-stat-label { font-size: 9px; font-family: var(--font-mono); color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; }
+.gol-stat-row { display: flex; gap: 5px; flex-wrap: wrap; }
+.gol-stat-chip { font-size: 10px; font-family: var(--font-mono); color: var(--text-2); background: var(--bg-surface); padding: 2px 7px; border-radius: 4px; border: 1px solid var(--border); }
+.gol-forma { display: flex; gap: 2px; }
+.gol-forma-letra { width: 16px; height: 16px; border-radius: 3px; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+
+.gol-probs { padding: 10px 14px; border-top: 1px solid var(--border); }
+.gol-probs-title { font-size: 9px; font-family: var(--font-mono); color: var(--text-3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.gol-probs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.gol-prob-item { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 6px 8px; text-align: center; }
+.gol-prob-nome { font-size: 9px; color: var(--text-3); margin-bottom: 3px; line-height: 1.3; }
+.gol-prob-val  { font-family: var(--font-display); font-size: 15px; font-weight: 700; }
+
+.gol-h2h { padding: 8px 14px 10px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text-3); display: flex; gap: 10px; flex-wrap: wrap; }
+.gol-h2h-chip strong { color: var(--text-1); }
+
+.gol-mercado { padding: 12px 14px; border-top: 1px solid var(--border); background: var(--orange-bg); display: flex; align-items: flex-start; gap: 10px; }
+.gol-mercado-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+.gol-mercado-nome { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--text-1); }
+.gol-mercado-detail { font-size: 11px; color: var(--text-2); margin-top: 3px; display: flex; gap: 10px; flex-wrap: wrap; }
+.gol-mercado-chip { display: flex; align-items: center; gap: 3px; font-family: var(--font-mono); }
+.gol-mercado-chip strong { color: var(--orange); }
+
+.gol-score { padding: 10px 14px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.gol-score-label { font-size: 9px; font-family: var(--font-mono); color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; }
+.gol-score-bar-wrap { flex: 1; }
+.gol-score-bar { height: 3px; background: var(--bg-active); border-radius: 2px; overflow: hidden; }
+.gol-score-fill { height: 100%; border-radius: 2px; background: linear-gradient(to right, var(--orange-dim), var(--orange)); transition: width 0.6s var(--ease); }
+.gol-score-val { font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--orange); white-space: nowrap; }
+
+.gols-empty { text-align: center; padding: 50px 20px; color: var(--text-3); }
+.gols-empty-icon { font-size: 40px; margin-bottom: 14px; opacity: 0.4; }
+.gols-empty-title { font-family: var(--font-display); font-size: 16px; font-weight: 600; color: var(--text-2); margin-bottom: 8px; }
+.gols-empty-desc { font-size: 13px; line-height: 1.6; color: var(--text-3); }
+
+/* ═══════════════════════════════════════
+   COMUNIDADE
+   ═══════════════════════════════════════ */
+.chat-wrap { display: flex; flex-direction: column; height: 520px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin-bottom: 14px; }
+.chat-header { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.chat-titulo { font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--text-1); }
+.chat-online { font-size: 10px; font-family: var(--font-mono); color: var(--green); display: flex; align-items: center; gap: 5px; }
+.chat-online::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: live-ping 2s infinite; }
+.chat-feed { flex: 1; overflow-y: auto; padding: 12px 12px; display: flex; flex-direction: column; gap: 10px; scrollbar-width: thin; }
+.chat-feed::-webkit-scrollbar { width: 3px; }
+.chat-feed::-webkit-scrollbar-thumb { background: var(--border-md); border-radius: 2px; }
+.chat-msg { display: flex; gap: 9px; align-items: flex-start; animation: slideIn 0.3s var(--ease); }
+.chat-avatar { width: 27px; height: 27px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; font-family: var(--font-display); }
+.chat-msg-body { flex: 1; min-width: 0; }
+.chat-msg-top { display: flex; align-items: baseline; gap: 7px; margin-bottom: 2px; }
+.chat-msg-nome { font-size: 12px; font-weight: 600; color: var(--text-1); }
+.chat-msg-hora { font-size: 9px; font-family: var(--font-mono); color: var(--text-3); }
+.chat-msg-badge { font-size: 9px; font-family: var(--font-mono); padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+.chat-msg-texto { font-size: 12px; color: var(--text-2); line-height: 1.5; word-break: break-word; }
+.chat-msg.destaque .chat-msg-texto { color: var(--text-1); }
+.chat-msg.sistema { justify-content: center; }
+.chat-msg.sistema .chat-msg-texto { font-size: 10px; font-family: var(--font-mono); color: var(--text-3); background: var(--bg-surface); padding: 3px 12px; border-radius: 20px; border: 1px solid var(--border); }
+.chat-reacoes { display: flex; gap: 6px; padding: 8px 12px 0; flex-wrap: wrap; }
+.reacao-btn { background: var(--bg-surface); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-size: 13px; cursor: pointer; transition: all var(--t) var(--ease); display: flex; align-items: center; gap: 4px; color: var(--text-2); font-family: var(--font-mono); }
+.reacao-btn:hover { background: var(--bg-hover); border-color: var(--border-md); transform: scale(1.05); }
+.reacao-btn.pulsou { animation: reacaoPop 0.3s var(--ease); }
+@keyframes reacaoPop { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
+.chat-input-wrap { padding: 10px 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: flex-end; flex-shrink: 0; }
+.chat-nick-wrap { padding: 10px 12px; border-top: 1px solid var(--border); background: var(--bg-surface); flex-shrink: 0; }
+.chat-nick-label { font-size: 11px; color: var(--text-2); margin-bottom: 6px; }
+.chat-nick-row { display: flex; gap: 8px; }
+.chat-input { flex: 1; background: var(--bg-surface); border: 1px solid var(--border-md); border-radius: 20px; padding: 8px 14px; font-size: 13px; color: var(--text-1); font-family: var(--font-ui); outline: none; resize: none; transition: border-color var(--t); min-height: 36px; max-height: 80px; }
+.chat-input:focus { border-color: var(--green); }
+.chat-input::placeholder { color: var(--text-3); }
+.chat-send { width: 36px; height: 36px; border-radius: 50%; background: var(--green); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all var(--t) var(--ease); color: #000; font-size: 14px; }
+.chat-send:hover { background: var(--green-dim); transform: scale(1.05); }
+.chat-nick-btn { padding: 6px 14px; background: var(--green); color: #000; border: none; border-radius: var(--r-sm); font-size: 12px; font-weight: 700; cursor: pointer; transition: all var(--t); }
+.chat-nick-btn:hover { background: var(--green-dim); }
+
+.enquete-card { background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; margin-bottom: 12px; }
+.enquete-header { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 9px; font-family: var(--font-mono); color: var(--text-3); text-transform: uppercase; letter-spacing: 1.5px; }
+.enquete-pergunta { padding: 14px 14px 10px; font-size: 14px; font-weight: 500; color: var(--text-1); line-height: 1.4; }
+.enquete-opcoes { padding: 0 14px 12px; display: flex; flex-direction: column; gap: 7px; }
+.enquete-opcao { position: relative; background: var(--bg-card); border: 1px solid var(--border-md); border-radius: var(--r-sm); padding: 10px 12px; cursor: pointer; transition: all var(--t) var(--ease); overflow: hidden; display: flex; align-items: center; justify-content: space-between; }
+.enquete-opcao:hover { border-color: var(--green); }
+.enquete-opcao.votado { border-color: var(--green); cursor: default; }
+.enquete-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--green-bg); border-radius: var(--r-sm); transition: width 0.6s var(--ease); pointer-events: none; }
+.enquete-opcao-texto { font-size: 13px; color: var(--text-1); position: relative; z-index: 1; }
+.enquete-pct { font-family: var(--font-mono); font-size: 12px; color: var(--green); position: relative; z-index: 1; font-weight: 600; }
+.enquete-total { padding: 0 14px 12px; font-size: 11px; color: var(--text-3); font-family: var(--font-mono); }
+
+/* ═══════════════════════════════════════
+   PRECISÃO (painel direito)
+   ═══════════════════════════════════════ */
+/* já definido acima */
+
+/* ═══════════════════════════════════════
+   TOOLTIP
+   ═══════════════════════════════════════ */
+[data-tip] { position: relative; }
+[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-md);
+  color: var(--text-1);
+  font-size: 11px;
+  padding: 4px 9px;
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+  z-index: 999;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+}
+
+/* ═══════════════════════════════════════
+   SCROLLBAR
+   ═══════════════════════════════════════ */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-md); border-radius: 2px; }
+
+/* ═══════════════════════════════════════
+   RESPONSIVIDADE
+   ═══════════════════════════════════════ */
+@media (max-width: 1200px) {
+  .layout { grid-template-columns: 200px 1fr; }
+  .right-panel { display: none; }
+}
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; padding: 14px; gap: 12px; }
+  .sidebar { display: none; }
+  .kpi-bar { padding: 0 14px; }
+  .kpi-item { padding: 10px 16px 10px 0; margin-right: 16px; }
+  .kpi-value { font-size: 18px; }
+}
+
+@media (max-width: 640px) {
+  .header { height: 50px; }
+  .header-inner { padding: 0 12px; }
+  .logo-name { font-size: 15px; }
+  .logo-beta { display: none; }
+  .live-badge { padding: 3px 10px 3px 7px; }
+  .live-label { font-size: 9px; }
+  .live-count { display: none; }
+  .header-clock { font-size: 10px; padding: 4px 8px; }
+  .kpi-inner { gap: 0; overflow-x: auto; }
+  .kpi-item { min-width: 65px; padding: 8px 12px 8px 0; margin-right: 12px; }
+  .kpi-value { font-size: 16px; }
+  .kpi-label { font-size: 8px; }
+  .kpi-icon { width: 28px; height: 28px; font-size: 12px; }
+  .layout { padding: 10px; gap: 10px; }
+  .tabs-nav { margin-bottom: 12px; }
+  .tab-btn { font-size: 12px; padding: 8px 8px; gap: 4px; }
+  .timeline-feed::before { display: none; }
+  .signal-icon-col { display: none; }
+  .card-inner { margin-left: 0; }
+  .signal-card { display: block; }
+  .card-dados { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .gol-probs-grid { grid-template-columns: repeat(3,1fr); }
+  .toast-container { bottom: 12px; right: 10px; left: 10px; }
+  .sinal-flash { min-width: 200px; padding: 9px 14px; }
+  .kpi-body .kpi-delta { display: none; }
+}
+
+@media (max-width: 380px) {
+  .kpi-value { font-size: 14px; }
+  .card-dados { grid-template-columns: 1fr 1fr; gap: 6px; }
+}
+</style>
+</head>
+<body>
+
+<div class="loading-bar" id="loadingBar" style="width:0%"></div>
+
+<!-- FLASH NOTIFICATION -->
+<div class="sinal-flash" id="sinalFlash">
+  <div class="flash-dot green" id="flashDot"></div>
+  <div>
+    <div class="flash-txt" id="flashTxt">Novo sinal detectado</div>
+    <div class="flash-sub" id="flashSub"></div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-inner">
+    <a href="#" class="logo">
+      <div class="logo-mark">📊</div>
+      <span class="logo-name">StatFlow</span>
+      <span class="logo-beta">Beta</span>
+    </a>
+
+    <div class="header-right">
+      <div class="live-badge" id="liveBadge">
+        <div class="live-dot" id="botDot"></div>
+        <span class="live-label" id="botStatus">AO VIVO</span>
+        <span class="live-count" id="liveCount">0 sinais</span>
+      </div>
+      <button class="som-btn" id="somBtn" onclick="toggleSom()">🔕 Som</button>
+      <div class="header-clock" id="headerTime">--:--</div>
+    </div>
+  </div>
+</header>
+
+<!-- TICKER -->
+<div class="ticker-wrap" id="tickerWrap" style="display:none">
+  <div class="ticker-tag">⚽ AO VIVO</div>
+  <div class="ticker-track" id="tickerTrack"></div>
+</div>
+
+<!-- KPI BAR -->
+<div class="kpi-bar">
+  <div class="kpi-inner">
+    <div class="kpi-item">
+      <div class="kpi-icon" style="background:var(--green-bg);color:var(--green)">🔔</div>
+      <div class="kpi-body">
+        <span class="kpi-label">Total hoje</span>
+        <span class="kpi-value" id="statTotal" style="color:var(--text-1)">—</span>
+        <span class="kpi-delta" id="kdelta-total">sinais gerados</span>
+      </div>
+    </div>
+    <div class="kpi-item">
+      <div class="kpi-icon" style="background:var(--red-bg);color:var(--red)">🔴</div>
+      <div class="kpi-body">
+        <span class="kpi-label">Ao vivo</span>
+        <span class="kpi-value" id="statLive" style="color:var(--green)">—</span>
+        <span class="kpi-delta">em andamento</span>
+      </div>
+    </div>
+    <div class="kpi-item">
+      <div class="kpi-icon" style="background:var(--blue-bg);color:var(--blue)">📋</div>
+      <div class="kpi-body">
+        <span class="kpi-label">Pré-jogo</span>
+        <span class="kpi-value" id="statPre" style="color:var(--blue)">—</span>
+        <span class="kpi-delta">aguardando</span>
+      </div>
+    </div>
+    <div class="kpi-item">
+      <div class="kpi-icon" style="background:var(--amber-bg);color:var(--amber)">⚡</div>
+      <div class="kpi-body">
+        <span class="kpi-label">Jogos vivos</span>
+        <span class="kpi-value" id="statJogos" style="color:var(--amber)">—</span>
+        <span class="kpi-delta">monitorados</span>
+      </div>
+    </div>
+    <div class="kpi-item">
+      <div class="kpi-icon" style="background:var(--purple-bg);color:var(--purple)">🕐</div>
+      <div class="kpi-body">
+        <span class="kpi-label">Atualização</span>
+        <span class="kpi-value" id="statUpdate" style="font-size:14px;font-family:var(--font-mono)">—</span>
+        <span class="kpi-delta">última sync</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LAYOUT PRINCIPAL -->
+<main class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <div class="sidebar-section">
+      <div class="sidebar-head">Filtrar sinais</div>
+      <button class="filter-btn active" data-filter="todos" onclick="setFilter('todos')">
+        <span class="filter-label"><span class="filter-icon" style="background:var(--bg-active)">🔢</span>Todos os sinais</span>
+        <span class="filter-badge" id="badge-todos">0</span>
+      </button>
+      <button class="filter-btn" data-filter="mercado" onclick="setFilter('mercado')">
+        <span class="filter-label"><span class="filter-icon" style="background:var(--green-bg)">📈</span>Over / Under</span>
+        <span class="filter-badge" id="badge-mercado">0</span>
+      </button>
+      <button class="filter-btn" data-filter="pre_live" onclick="setFilter('pre_live')">
+        <span class="filter-label"><span class="filter-icon" style="background:var(--blue-bg)">📋</span>Pré-jogo</span>
+        <span class="filter-badge" id="badge-pre_live">0</span>
+      </button>
+      <button class="filter-btn" data-filter="momentum" onclick="setFilter('momentum')">
+        <span class="filter-label"><span class="filter-icon" style="background:var(--amber-bg)">🌊</span>Momentum</span>
+        <span class="filter-badge" id="badge-momentum">0</span>
+      </button>
+      <button class="filter-btn" data-filter="pressao" onclick="setFilter('pressao')">
+        <span class="filter-label"><span class="filter-icon" style="background:var(--red-bg)">🔥</span>Pressão</span>
+        <span class="filter-badge" id="badge-pressao">0</span>
+      </button>
+      <button class="filter-btn" data-filter="handicap" onclick="setFilter('handicap')">
+        <span class="filter-label"><span class="filter-icon" style="background:var(--purple-bg)">👑</span>Handicap</span>
+        <span class="filter-badge" id="badge-handicap">0</span>
+      </button>
+      <button class="filter-btn" data-filter="tecnico" onclick="setFilter('tecnico')">
+        <span class="filter-label"><span class="filter-icon" style="background:var(--cyan-bg)">🛡️</span>Técnico</span>
+        <span class="filter-badge" id="badge-tecnico">0</span>
+      </button>
+      <button class="filter-btn" data-filter="agenda" onclick="setFilter('agenda')">
+        <span class="filter-label"><span class="filter-icon" style="background:var(--blue-bg)">📅</span>Agenda</span>
+        <span class="filter-badge" id="badge-agenda">0</span>
+      </button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-head">Confiança</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div><span><strong style="color:var(--text-1)">85–95%</strong> — Alta</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div><span><strong style="color:var(--text-1)">70–84%</strong> — Média+</span></div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div><span><strong style="color:var(--text-1)">60–69%</strong> — Moderada</span></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-head">Como ler</div>
+      <div class="guide-item"><strong>Over X.X Escanteios</strong><br>Projeção aponta mais que X.X corners. Entre no mercado Over.</div>
+      <div class="guide-item"><strong>Momentum</strong><br>2+ escanteios em 12 min. Próximo corner iminente.</div>
+      <div class="guide-item"><strong>Janela ideal ✅</strong><br>Sinais entre 20-42' e 50-75'. Melhor custo-benefício.</div>
+      <div class="guide-item"><strong>Pré-jogo 📋</strong><br>Baseado em H2H e médias. Odds melhores antes do jogo.</div>
+    </div>
+
+    <div class="sidebar-warn">⚠️ Análise estatística.<br>Gerencie sempre sua banca.<br>Máx. 3% por entrada.</div>
+
+  </aside>
+
+  <!-- FEED PRINCIPAL -->
+  <section>
+
+    <!-- ABAS -->
+    <div class="tabs-nav">
+      <button class="tab-btn active-esc" id="tab-esc" onclick="setTab('escanteios')">
+        🚩 Escanteios
+        <span class="tab-badge" id="tab-badge-esc">0</span>
+      </button>
+      <button class="tab-btn" id="tab-gols" onclick="setTab('gols')">
+        ⚽ Gols
+        <span class="tab-badge" id="tab-badge-gols">0</span>
+      </button>
+      <button class="tab-btn" id="tab-cartoes" onclick="setTab('cartoes')">
+        🟨 Cartões
+        <span class="tab-badge" id="tab-badge-cartoes">0</span>
+      </button>
+      <button class="tab-btn" id="tab-resultado" onclick="setTab('resultado')">
+        🏆 1X2
+        <span class="tab-badge" id="tab-badge-resultado">0</span>
+      </button>
+      <button class="tab-btn" id="tab-chat" onclick="setTab('comunidade')">
+        💬 Chat
+        <span class="tab-badge" id="tab-badge-chat" style="background:rgba(167,139,250,0.15);color:var(--purple)">ao vivo</span>
+      </button>
+    </div>
+
+    <!-- PAINEL ESCANTEIOS -->
+    <div id="painel-escanteios">
+      <div class="timeline-head">
+        <div>
+          <div class="timeline-title">Linha do Tempo</div>
+          <div class="timeline-sub" id="timelineSubtitle">Aguardando sinais...</div>
+        </div>
+        <button class="refresh-btn" id="refreshBtn" onclick="fetchSinais()">
+          <svg id="refreshIcon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+          Atualizar
+        </button>
+      </div>
+      <div class="timeline-feed" id="timelineFeed">
+        <div class="empty-state">
+          <div class="empty-icon">⏳</div>
+          <div class="empty-title">Conectando ao servidor...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAINEL GOLS -->
+    <div id="painel-gols" style="display:none">
+      <div class="gols-hero">
+        <div class="gols-hero-tag">🔥 Motor Poisson v4.3 — StatFlow</div>
+        <div class="gols-hero-title">Sinais de Gols com<br><span>Vantagem Matemática Real</span></div>
+        <div class="gols-hero-desc">Cada sinal é calculado com distribuição de Poisson, critério de Kelly e EV positivo verificado. Não é achismo — é estatística aplicada ao futebol.</div>
+        <div class="gols-pills">
+          <div class="gols-pill">📐 <strong>Distribuição de Poisson</strong></div>
+          <div class="gols-pill">💰 <strong>Critério de Kelly</strong></div>
+          <div class="gols-pill">📊 <strong>EV positivo</strong></div>
+          <div class="gols-pill">🔁 <strong>H2H + Forma</strong></div>
+          <div class="gols-pill">⚡ <strong>Varredura 90s</strong></div>
+          <div class="gols-pill">🏆 <strong>60+ ligas</strong></div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap">
+        <button class="gol-tier-filter" data-tier="todos" onclick="setTierFilter('todos')"
+          style="padding:5px 13px;border-radius:20px;border:1px solid var(--border-md);background:var(--bg-surface);color:var(--text-2);font-size:12px;cursor:pointer;transition:all var(--t)">
+          Todos <span id="gf-todos" style="font-family:var(--font-mono);font-size:10px">0</span>
+        </button>
+        <button class="gol-tier-filter" data-tier="ELITE" onclick="setTierFilter('ELITE')"
+          style="padding:5px 13px;border-radius:20px;border:1px solid rgba(252,211,77,0.25);background:var(--amber-bg);color:var(--amber);font-size:12px;cursor:pointer;transition:all var(--t)">
+          🔥🔥 Elite <span id="gf-ELITE" style="font-family:var(--font-mono);font-size:10px">0</span>
+        </button>
+        <button class="gol-tier-filter" data-tier="QUENTE" onclick="setTierFilter('QUENTE')"
+          style="padding:5px 13px;border-radius:20px;border:1px solid rgba(255,107,43,0.25);background:var(--orange-bg);color:var(--orange);font-size:12px;cursor:pointer;transition:all var(--t)">
+          🔥 Quente <span id="gf-QUENTE" style="font-family:var(--font-mono);font-size:10px">0</span>
+        </button>
+        <button class="gol-tier-filter" data-tier="MORNO" onclick="setTierFilter('MORNO')"
+          style="padding:5px 13px;border-radius:20px;border:1px solid rgba(56,189,248,0.25);background:var(--blue-bg);color:var(--blue);font-size:12px;cursor:pointer;transition:all var(--t)">
+          ⚡ Morno <span id="gf-MORNO" style="font-family:var(--font-mono);font-size:10px">0</span>
+        </button>
+        <button class="gol-tier-filter" data-tier="VIGIAR" onclick="setTierFilter('VIGIAR')"
+          style="padding:5px 13px;border-radius:20px;border:1px solid var(--border-md);background:var(--bg-surface);color:var(--text-2);font-size:12px;cursor:pointer;transition:all var(--t)">
+          👀 Vigiar <span id="gf-VIGIAR" style="font-family:var(--font-mono);font-size:10px">0</span>
+        </button>
+      </div>
+
+      <div id="golsFeed">
+        <div class="gols-empty">
+          <div class="gols-empty-icon">⚽</div>
+          <div class="gols-empty-title">Bot de Gols conectado</div>
+          <div class="gols-empty-desc">Sinais aparecem conforme o bot analisa as partidas.<br>Varredura a cada 90 segundos em mais de 60 ligas.</div>
+        </div>
+      </div>
+    </div>
+
+    </div>
+
+    <!-- PAINEL CARTÕES -->
+    <div id="painel-cartoes" style="display:none">
+
+      <!-- Hero cartões -->
+      <div class="gols-hero" style="background:linear-gradient(135deg,rgba(252,211,77,0.06),rgba(255,107,43,0.03));border-color:rgba(252,211,77,0.15)">
+        <div class="gols-hero-tag" style="color:var(--amber);background:rgba(252,211,77,0.08);border-color:rgba(252,211,77,0.2)">🟨 Motor Poisson Duplo v6.0</div>
+        <div class="gols-hero-title">Sinais de <span style="color:var(--amber)">Cartões</span><br>com IA Gemini integrada</div>
+        <div class="gols-hero-desc">Análise de árbitro, clássicos, contexto de tabela e H2H real. Cada sinal passa por validação cruzada com Gemini antes de ser enviado.</div>
+        <div class="gols-pills">
+          <div class="gols-pill">🃏 <strong>Poisson Duplo</strong></div>
+          <div class="gols-pill">🧠 <strong>IA Gemini</strong></div>
+          <div class="gols-pill">👮 <strong>Perfil do árbitro</strong></div>
+          <div class="gols-pill">📊 <strong>H2H real</strong></div>
+          <div class="gols-pill">⚖️ <strong>Contexto de tabela</strong></div>
+          <div class="gols-pill">🔁 <strong>Form decay</strong></div>
+        </div>
+      </div>
+
+      <!-- Feed cartões -->
+      <div id="catroesFeed">
+        <div class="gols-empty">
+          <div class="gols-empty-icon">🟨</div>
+          <div class="gols-empty-title">Bot de Cartões conectado</div>
+          <div class="gols-empty-desc">Sinais pré-jogo aparecem conforme o bot analisa partidas.<br>Inclui validação por IA Gemini e perfil real do árbitro.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAINEL RESULTADO 1X2 -->
+    <div id="painel-resultado" style="display:none">
+
+      <!-- Hero resultado -->
+      <div class="gols-hero" style="background:linear-gradient(135deg,rgba(56,189,248,0.06),rgba(167,139,250,0.03));border-color:rgba(56,189,248,0.15)">
+        <div class="gols-hero-tag" style="color:var(--blue);background:rgba(56,189,248,0.08);border-color:rgba(56,189,248,0.2)">🏆 Motor Dixon-Coles v1.0</div>
+        <div class="gols-hero-title">Previsão de <span style="color:var(--blue)">Vencedor</span><br>com Modelo Dixon-Coles</div>
+        <div class="gols-hero-desc">Modelo estatístico profissional para prever resultado 1×2, dupla chance e empate. ELO implícito + forma recente + H2H dos últimos 10 confrontos.</div>
+        <div class="gols-pills">
+          <div class="gols-pill">📐 <strong>Dixon-Coles</strong></div>
+          <div class="gols-pill">⚡ <strong>ELO implícito</strong></div>
+          <div class="gols-pill">🔁 <strong>H2H 10 jogos</strong></div>
+          <div class="gols-pill">📈 <strong>Forma recente</strong></div>
+          <div class="gols-pill">💰 <strong>Kelly 15%</strong></div>
+          <div class="gols-pill">🎯 <strong>Dupla chance</strong></div>
+        </div>
+      </div>
+
+      <!-- Feed resultado -->
+      <div id="resultadoFeed">
+        <div class="gols-empty">
+          <div class="gols-empty-icon">🏆</div>
+          <div class="gols-empty-title">Bot de Resultado 1X2 conectado</div>
+          <div class="gols-empty-desc">Sinais pré-jogo de resultado com EV positivo verificado.<br>Cobre: 1, X, 2, 1X, X2 e 12 (dupla chance).</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAINEL COMUNIDADE -->
+    <div id="painel-comunidade" style="display:none">
+      <div class="enquete-card">
+        <div class="enquete-header">📊 Enquete da comunidade</div>
+        <div class="enquete-pergunta" id="enquete-pergunta">Qual mercado você mais usa nos sinais de escanteios?</div>
+        <div class="enquete-opcoes" id="enquete-opcoes">
+          <div class="enquete-opcao" onclick="votar(0)">
+            <div class="enquete-fill" id="efill-0" style="width:0%"></div>
+            <span class="enquete-opcao-texto">Over / Under linha</span>
+            <span class="enquete-pct" id="epct-0" style="display:none">0%</span>
+          </div>
+          <div class="enquete-opcao" onclick="votar(1)">
+            <div class="enquete-fill" id="efill-1" style="width:0%"></div>
+            <span class="enquete-opcao-texto">Handicap de escanteios</span>
+            <span class="enquete-pct" id="epct-1" style="display:none">0%</span>
+          </div>
+          <div class="enquete-opcao" onclick="votar(2)">
+            <div class="enquete-fill" id="efill-2" style="width:0%"></div>
+            <span class="enquete-opcao-texto">Ambas marcam / não marcam</span>
+            <span class="enquete-pct" id="epct-2" style="display:none">0%</span>
+          </div>
+          <div class="enquete-opcao" onclick="votar(3)">
+            <div class="enquete-fill" id="efill-3" style="width:0%"></div>
+            <span class="enquete-opcao-texto">Primeiro escanteio</span>
+            <span class="enquete-pct" id="epct-3" style="display:none">0%</span>
+          </div>
+        </div>
+        <div class="enquete-total" id="enquete-total">Toque para votar · 0 votos</div>
+      </div>
+
+      <div class="chat-wrap">
+        <div class="chat-header">
+          <span class="chat-titulo">💬 Chat da comunidade</span>
+          <span class="chat-online" id="chatOnline">3 online</span>
+        </div>
+        <div class="chat-reacoes">
+          <button class="reacao-btn" onclick="enviarReacao('🔥')"><span>🔥</span><span id="r0">0</span></button>
+          <button class="reacao-btn" onclick="enviarReacao('💰')"><span>💰</span><span id="r1">0</span></button>
+          <button class="reacao-btn" onclick="enviarReacao('✅')"><span>✅</span><span id="r2">0</span></button>
+          <button class="reacao-btn" onclick="enviarReacao('🎯')"><span>🎯</span><span id="r3">0</span></button>
+          <button class="reacao-btn" onclick="enviarReacao('😬')"><span>😬</span><span id="r4">0</span></button>
+        </div>
+        <div class="chat-feed" id="chatFeed"></div>
+        <div class="chat-nick-wrap" id="chatNickWrap">
+          <div class="chat-nick-label">Como quer ser chamado no chat?</div>
+          <div class="chat-nick-row">
+            <input class="chat-input" id="chatNickInput" placeholder="Seu apelido..." maxlength="16" style="border-radius:8px">
+            <button class="chat-nick-btn" onclick="definirNick()">Entrar</button>
+          </div>
+        </div>
+        <div class="chat-input-wrap" id="chatInputWrap" style="display:none">
+          <textarea class="chat-input" id="chatMsg" placeholder="Digite sua mensagem..." maxlength="200" rows="1"
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();enviarMsg()}"></textarea>
+          <button class="chat-send" onclick="enviarMsg()">➤</button>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- PAINEL DIREITO -->
+  <aside class="right-panel">
+
+    <div class="panel-card">
+      <div class="panel-head">Precisão hoje</div>
+      <div class="prec-body">
+        <div class="prec-pct" id="pd-pct">—</div>
+        <div class="prec-lbl">confiança média dos sinais</div>
+      </div>
+      <div class="prec-bar"><div class="prec-fill" id="pd-barra" style="width:0%"></div></div>
+      <div class="prec-stats">
+        <div class="prec-stat"><div class="prec-stat-val" id="pd-sinais-total">—</div><div class="prec-stat-lbl">Sinais</div></div>
+        <div class="prec-stat"><div class="prec-stat-val" style="color:var(--green)" id="pd-elite-count">—</div><div class="prec-stat-lbl">Elite</div></div>
+        <div class="prec-stat"><div class="prec-stat-val" style="color:var(--blue)" id="pd-pre-count">—</div><div class="prec-stat-lbl">Pré</div></div>
+      </div>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-head">Resumo ao vivo</div>
+      <div class="stat-mini"><span class="stat-mini-label">🔔 Total de sinais</span><span class="stat-mini-val" id="pd-total" style="color:var(--text-1)">—</span></div>
+      <div class="stat-mini"><span class="stat-mini-label">🔴 Ao vivo</span><span class="stat-mini-val" id="pd-live" style="color:var(--green)">—</span></div>
+      <div class="stat-mini"><span class="stat-mini-label">📋 Pré-jogo</span><span class="stat-mini-val" id="pd-pre" style="color:var(--blue)">—</span></div>
+      <div class="stat-mini"><span class="stat-mini-label">📅 Agenda</span><span class="stat-mini-val" id="pd-agenda" style="color:var(--amber)">—</span></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-head">Tipos de sinal</div>
+      <div id="pd-tipos"><div class="tipo-row" style="color:var(--text-3);font-size:12px;justify-content:center;padding:14px">Aguardando sinais...</div></div>
+    </div>
+
+    <div class="panel-card">
+      <div class="panel-head">Dicas de trading</div>
+      <div class="dica-item">
+        <div class="dica-tag" style="background:var(--green-bg);color:var(--green)">Gestão de banca</div>
+        <div class="dica-text">Nunca arrisque mais de 3% da banca por entrada. Consistência supera ganhos rápidos.</div>
+      </div>
+      <div class="dica-item">
+        <div class="dica-tag" style="background:var(--amber-bg);color:var(--amber)">Janela ideal ✅</div>
+        <div class="dica-text">Sinais entre 20-42' e 50-75' têm melhor custo-benefício — odds ainda com valor.</div>
+      </div>
+      <div class="dica-item">
+        <div class="dica-tag" style="background:var(--blue-bg);color:var(--blue)">Pré-jogo</div>
+        <div class="dica-text">H2H e médias históricas geram odds mais altas que ao vivo. Entre antes.</div>
+      </div>
+      <div class="dica-item">
+        <div class="dica-tag" style="background:var(--purple-bg);color:var(--purple)">Confiança alta</div>
+        <div class="dica-text">Foque em sinais acima de 80%. Qualidade supera quantidade de entradas.</div>
+      </div>
+    </div>
+
+    <div style="padding:12px 14px;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-lg);font-size:11px;color:var(--text-3);line-height:1.6;text-align:center;">
+      ⚠️ Análise estatística.<br>Sem garantia de resultado.<br>Jogue com responsabilidade.
+    </div>
+
+  </aside>
+
+</main>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  URL DA API
+// ══════════════════════════════════════════════════════
+const API_URL_CONFIGURADA = 'https://statflow.up.railway.app/sinais';
+
+function detectarApiUrl() {
+  const estaNaInternet = (
+    window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1' &&
+    window.location.hostname !== ''
+  );
+  if (estaNaInternet && API_URL_CONFIGURADA.includes('COLOQUE_URL')) {
+    const urlSalva = localStorage.getItem('statflow_api_url');
+    if (urlSalva) return urlSalva;
+    const urlDigitada = prompt('🔗 URL do bot Railway (inclua /sinais no final):\nExemplo: https://statflow.up.railway.app/sinais');
+    if (urlDigitada && urlDigitada.startsWith('http')) {
+      const urlFinal = urlDigitada.endsWith('/sinais') ? urlDigitada : urlDigitada.replace(/\/$/, '') + '/sinais';
+      localStorage.setItem('statflow_api_url', urlFinal);
+      return urlFinal;
+    }
+    return null;
+  }
+  if (!API_URL_CONFIGURADA.includes('COLOQUE_URL')) return API_URL_CONFIGURADA;
+  return 'http://localhost:8765/sinais';
+}
+
+const API_URL = detectarApiUrl();
+const API_URL_GOLS = API_URL ? API_URL.replace('/sinais', '/gols') : null;
+const REFRESH_INTERVAL = 15000;
+
+// ══════════════════════════════════════════════════════
+//  ESTADO GLOBAL
+// ══════════════════════════════════════════════════════
+let todosOsSinais  = [];
+let filtroAtivo    = 'todos';
+let abaAtiva       = 'escanteios';
+let todosOsGols    = [];
+let tierFiltro     = 'todos';
+let autoRefresh    = null;
+let golsRefresh    = null;
+let sinaisCount    = {};
+
+// ══════════════════════════════════════════════════════
+//  UTILITÁRIOS
+// ══════════════════════════════════════════════════════
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function mostrarToast(msg, tipo) {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.style.borderLeftColor = tipo === 'green' ? 'var(--green)' : tipo === 'red' ? 'var(--red)' : 'var(--amber)';
+  t.innerHTML = (tipo === 'green' ? '🔔 ' : tipo === 'red' ? '⚠️ ' : '💡 ') + msg;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),350); }, 3500);
+}
+
+// ══════════════════════════════════════════════════════
+//  RELÓGIO — sempre Brasília
+// ══════════════════════════════════════════════════════
+function atualizarRelogio() {
+  const agora = new Date();
+  const brt = new Date(agora.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  document.getElementById('headerTime').textContent =
+    brt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ' · BRT';
+}
+
+// ══════════════════════════════════════════════════════
+//  LIVE BADGE
+// ══════════════════════════════════════════════════════
+function setOnline(online, msg) {
+  const dot   = document.getElementById('botDot');
+  const lbl   = document.getElementById('botStatus');
+  const badge = document.getElementById('liveBadge');
+  if (online) {
+    dot.className = 'live-dot';
+    lbl.className = 'live-label';
+    lbl.textContent = 'AO VIVO';
+    badge.style.opacity = '1';
+  } else {
+    dot.className = 'live-dot off';
+    lbl.className = 'live-label off';
+    lbl.textContent = msg || 'OFFLINE';
+    badge.style.opacity = '0.5';
+  }
+}
+
+function atualizarLiveBadge(total) {
+  const el = document.getElementById('liveCount');
+  if (el) el.textContent = total + ' sinais';
+}
+
+// ══════════════════════════════════════════════════════
+//  FLASH NOTIFICATION
+// ══════════════════════════════════════════════════════
+let _flashTimer = null;
+function mostrarFlash(sinal) {
+  const el  = document.getElementById('sinalFlash');
+  const dot = document.getElementById('flashDot');
+  const txt = document.getElementById('flashTxt');
+  const sub = document.getElementById('flashSub');
+  if (!el) return;
+  const elite = sinal && (sinal.confianca >= 85 || sinal.tier === 'ELITE');
+  dot.className = 'flash-dot ' + (elite ? 'amber' : 'green');
+  el.style.borderColor = elite ? 'var(--amber)' : 'var(--green)';
+  el.style.boxShadow = elite
+    ? '0 0 0 1px rgba(252,211,77,0.15), 0 8px 40px rgba(0,0,0,.5), 0 0 30px rgba(252,211,77,.08)'
+    : '0 0 0 1px rgba(0,255,135,0.15), 0 8px 40px rgba(0,0,0,.5), 0 0 30px rgba(0,255,135,.08)';
+  txt.textContent = elite ? '🔥 Sinal ELITE detectado — ' + (sinal.tipo||'') : '🔔 Novo sinal — ' + (sinal.tipo||'');
+  sub.textContent = sinal ? (sinal.casa||'') + ' × ' + (sinal.fora||'') : '';
+  el.classList.add('show');
+  clearTimeout(_flashTimer);
+  _flashTimer = setTimeout(() => el.classList.remove('show'), 4500);
+}
+
+// ══════════════════════════════════════════════════════
+//  SOM
+// ══════════════════════════════════════════════════════
+let _somAtivo = false;
+let _audioCtx = null;
+function toggleSom() {
+  _somAtivo = !_somAtivo;
+  const btn = document.getElementById('somBtn');
+  if (btn) { btn.textContent = _somAtivo ? '🔔 Som' : '🔕 Som'; btn.className = 'som-btn' + (_somAtivo ? ' ativo' : ''); }
+  if (_somAtivo) tocarSom();
+}
+function tocarSom(tipo='normal') {
+  if (!_somAtivo) return;
+  try {
+    if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = _audioCtx;
+    const freqs = tipo === 'elite' ? [880, 1100, 1320] : [660, 880];
+    const gains = tipo === 'elite' ? [0.15, 0.12, 0.10] : [0.10, 0.08];
+    freqs.forEach((freq, i) => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freq; osc.type = 'sine';
+      const t = ctx.currentTime + i * 0.12;
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(gains[i], t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc.start(t); osc.stop(t + 0.25);
+    });
+  } catch(e) {}
+}
+
+// ══════════════════════════════════════════════════════
+//  TICKER
+// ══════════════════════════════════════════════════════
+function atualizarTicker(sinais) {
+  const vistos = new Set(), jogos = [];
+  sinais.forEach(s => {
+    if (s.minuto > 0 && s.casa && !vistos.has(s.casa + s.fora)) {
+      vistos.add(s.casa + s.fora); jogos.push(s);
+    }
+  });
+  const wrap = document.getElementById('tickerWrap'), track = document.getElementById('tickerTrack');
+  if (!track) return;
+  if (!jogos.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+  const itens = [...jogos, ...jogos].map(s => `<span class="ticker-item">
+    <span>${escHtml(s.casa)}</span>
+    <span class="ticker-score">${s.gols_casa??0}×${s.gols_fora??0}</span>
+    <span>${escHtml(s.fora)}</span>
+    <span class="ticker-min">${s.minuto}'</span>
+    <span class="ticker-dot">·</span>
+  </span>`).join('');
+  track.innerHTML = itens;
+  track.style.animationDuration = Math.max(20, jogos.length * 8) + 's';
+}
+
+// ══════════════════════════════════════════════════════
+//  COUNTDOWN
+// ══════════════════════════════════════════════════════
+const _countdowns = new Map();
+function iniciarCountdowns() {
+  document.querySelectorAll('[data-countdown]').forEach(el => {
+    const iso = el.dataset.countdown;
+    if (!iso || _countdowns.has(iso)) return;
+    const fn = () => {
+      const diff = Math.floor((new Date(iso) - Date.now()) / 1000);
+      if (diff <= 0) { el.textContent = '⚡ Iniciando'; el.className = 'countdown-badge urgent'; return; }
+      const h = Math.floor(diff/3600), m = Math.floor((diff%3600)/60), s = diff%60;
+      el.textContent = h > 0 ? `⏳ ${h}h ${m}min` : m > 0 ? `⏳ ${m}m ${String(s).padStart(2,'0')}s` : `⚡ ${s}s`;
+      el.className = 'countdown-badge ' + (diff < 600 ? 'urgent' : diff < 3600 ? 'soon' : 'normal');
+    };
+    fn(); _countdowns.set(iso, setInterval(fn, 1000));
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  PRECISÃO
+// ══════════════════════════════════════════════════════
+function atualizarPrecisao(sinais) {
+  const total  = sinais.length;
+  const elites = sinais.filter(s => (s.confianca||0) >= 85).length;
+  const pre    = sinais.filter(s => s.categoria === 'pre_live').length;
+  const pct    = total > 0 ? Math.round(sinais.reduce((a,s) => a + (s.confianca||60), 0) / total) : 0;
+  const elPct  = document.getElementById('pd-pct');
+  const elBar  = document.getElementById('pd-barra');
+  if (elPct)  elPct.textContent  = total > 0 ? pct + '%' : '—';
+  if (elBar)  elBar.style.width  = total > 0 ? pct + '%' : '0%';
+  const t = document.getElementById('pd-sinais-total'); if(t) t.textContent = total;
+  const e = document.getElementById('pd-elite-count'); if(e) e.textContent = elites;
+  const p = document.getElementById('pd-pre-count');   if(p) p.textContent = pre;
+}
+
+// ══════════════════════════════════════════════════════
+//  FETCH SINAIS
+// ══════════════════════════════════════════════════════
+async function fetchSinais() {
+  const btn = document.getElementById('refreshBtn');
+  const bar = document.getElementById('loadingBar');
+  btn.classList.add('spinning');
+  bar.style.width = '30%';
+
+  if (!API_URL || API_URL.includes('COLOQUE_URL')) {
+    setOnline(false, '⚙ Config');
+    btn.classList.remove('spinning'); bar.style.width = '0%'; return;
+  }
+
+  const antesIds = new Set(todosOsSinais.map(s => s.id));
+  try {
+    const res = await fetch(API_URL + '?t=' + Date.now(), { cache: 'no-store', mode: 'cors' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const dados = await res.json();
+    bar.style.width = '80%';
+
+    const antigos = new Set(todosOsSinais.map(s => s.id));
+    const novosArr = (dados.sinais || []).filter(s => !antigos.has(s.id));
+    todosOsSinais = dados.sinais || [];
+    sinaisCount = {};
+    todosOsSinais.forEach(s => { const c = s.categoria || 'outro'; sinaisCount[c] = (sinaisCount[c]||0)+1; });
+
+    atualizarStats(dados.stats);
+    atualizarTimeline(novosArr.length);
+    atualizarBadges();
+    atualizarTicker(todosOsSinais);
+    atualizarPrecisao(todosOsSinais);
+    setOnline(true);
+
+    if (novosArr.length > 0) {
+      const melhor = novosArr.sort((a,b) => (b.confianca||0)-(a.confianca||0))[0];
+      mostrarFlash(melhor);
+      tocarSom((melhor.confianca||0) >= 85 ? 'elite' : 'normal');
+      mostrarToast(`${novosArr.length} novo${novosArr.length>1?'s':''} sinal${novosArr.length>1?'is':''}`, 'green');
+    }
+  } catch(e) {
+    setOnline(false, 'Offline');
+    console.warn('API offline:', e.message);
+  } finally {
+    setTimeout(() => { bar.style.width='100%'; setTimeout(() => bar.style.width='0%', 300); }, 200);
+    btn.classList.remove('spinning');
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  STATS
+// ══════════════════════════════════════════════════════
+function atualizarStats(stats) {
+  if (!stats) return;
+  document.getElementById('statTotal').textContent = stats.total || 0;
+  document.getElementById('statLive').textContent  = stats.ao_vivo || 0;
+  document.getElementById('statPre').textContent   = stats.pre_live || 0;
+  document.getElementById('statJogos').textContent = '—';
+  if (stats.ultimo_update) {
+    const d = new Date(stats.ultimo_update);
+    document.getElementById('statUpdate').textContent = d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+  }
+  document.getElementById('pd-total').textContent  = stats.total || 0;
+  document.getElementById('pd-live').textContent   = stats.ao_vivo || 0;
+  document.getElementById('pd-pre').textContent    = stats.pre_live || 0;
+  document.getElementById('pd-agenda').textContent = stats.agenda || 0;
+  atualizarLiveBadge(stats.total || 0);
+}
+
+// ══════════════════════════════════════════════════════
+//  BADGES
+// ══════════════════════════════════════════════════════
+function atualizarBadges() {
+  document.getElementById('badge-todos').textContent = todosOsSinais.length;
+  document.getElementById('tab-badge-esc').textContent = todosOsSinais.length;
+  ['mercado','pre_live','momentum','pressao','handicap','tecnico','agenda'].forEach(c => {
+    const el = document.getElementById('badge-' + c);
+    if (el) el.textContent = sinaisCount[c] || 0;
+  });
+  const tipoConf = {
+    'mercado':  { icon:'📈', label:'Over / Under',  cor:'var(--green)' },
+    'momentum': { icon:'🌊', label:'Momentum',       cor:'var(--amber)' },
+    'pressao':  { icon:'🔥', label:'Pressão',        cor:'var(--red)' },
+    'handicap': { icon:'👑', label:'Handicap',       cor:'var(--purple)' },
+    'tecnico':  { icon:'🛡️', label:'Técnico',        cor:'var(--cyan)' },
+    'pre_live': { icon:'📋', label:'Pré-jogo',       cor:'var(--blue)' },
+    'agenda':   { icon:'📅', label:'Agenda',         cor:'var(--blue)' },
+  };
+  const total = todosOsSinais.length || 1;
+  const pdT = document.getElementById('pd-tipos');
+  if (!pdT) return;
+  const linhas = Object.entries(tipoConf).map(([c, cfg]) => {
+    const cnt = sinaisCount[c] || 0;
+    if (!cnt) return '';
+    const pct = Math.round(cnt/total*100);
+    return `<div class="tipo-row">
+      <span class="tipo-nome">${cfg.icon} <span style="color:var(--text-1)">${cfg.label}</span></span>
+      <div class="tipo-bar-wrap">
+        <div class="tipo-bar"><div class="tipo-bar-fill" style="width:${pct}%;background:${cfg.cor}"></div></div>
+        <span class="tipo-count">${cnt}</span>
+      </div>
+    </div>`;
+  }).filter(Boolean).join('');
+  pdT.innerHTML = linhas || '<div class="tipo-row" style="color:var(--text-3);font-size:12px;justify-content:center;padding:14px">Aguardando sinais...</div>';
+}
+
+// ══════════════════════════════════════════════════════
+//  TIMELINE
+// ══════════════════════════════════════════════════════
+function atualizarTimeline(novos) {
+  const feed = document.getElementById('timelineFeed');
+  const filtered = filtroAtivo === 'todos' ? todosOsSinais : todosOsSinais.filter(s => s.categoria === filtroAtivo);
+  if (!filtered.length) {
+    feed.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">🔍</div>
+      <div class="empty-title">${filtroAtivo === 'todos' ? 'Aguardando sinais...' : 'Nenhum sinal nesta categoria.'}</div>
+    </div>`;
+    return;
+  }
+  feed.innerHTML = filtered.map((s,i) => renderCard(s,i)).join('');
+  document.getElementById('timelineSubtitle').textContent = `${filtered.length} sinal${filtered.length>1?'is':''} exibido${filtered.length>1?'s':''}`;
+  setTimeout(iniciarCountdowns, 100);
+}
+
+// ══════════════════════════════════════════════════════
+//  RENDER CARD ESCANTEIOS
+// ══════════════════════════════════════════════════════
+function tipoVisual(tipo) {
+  const m = {
+    OVER:['var(--green)','var(--green-bg)','📈'], UNDER:['var(--red)','var(--red-bg)','📉'],
+    PRE_OVER:['var(--blue)','var(--blue-bg)','📋'], PRE_UNDER:['var(--blue)','var(--blue-bg)','📋'],
+    PRE_AMBOS_ALTO:['var(--blue)','var(--blue-bg)','🔥'],
+    MOMENTUM:['var(--amber)','var(--amber-bg)','🌊'], PRESSAO:['var(--red)','var(--red-bg)','🔥'],
+    QUENTE:['var(--amber)','var(--amber-bg)','🔥'], DOMINIO:['var(--purple)','var(--purple-bg)','👑'],
+    HANDICAP:['var(--purple)','var(--purple-bg)','📊'], TEMPO2:['var(--cyan)','var(--cyan-bg)','⚡'],
+    DESESPERO:['var(--red)','var(--red-bg)','😤'], SECA:['var(--text-3)','var(--bg-active)','🏜️'],
+    BLOQUEIOS:['var(--cyan)','var(--cyan-bg)','🛡️'], FORA_ALVO:['var(--cyan)','var(--cyan-bg)','🎯'],
+    OVER_1T:['var(--green)','var(--green-bg)','🔔'], UNDER_1T:['var(--red)','var(--red-bg)','🔕'],
+    AGENDA:['var(--blue)','var(--blue-bg)','📅'],
+  };
+  return m[tipo] || ['var(--text-3)','var(--bg-active)','⚡'];
+}
+
+function labelTipo(tipo) {
+  const m = { OVER:'Over Escanteios', UNDER:'Under Escanteios', PRE_OVER:'Pré-jogo Over', PRE_UNDER:'Pré-jogo Under',
+    PRE_AMBOS_ALTO:'Pré-jogo Ambos', MOMENTUM:'Onda de Escanteios', PRESSAO:'Pressão Ofensiva',
+    QUENTE:'Jogo Quente', DOMINIO:'Domínio', HANDICAP:'Handicap', TEMPO2:'2º Tempo Forte',
+    DESESPERO:'Time Desesperado', SECA:'Seca de Escanteios', BLOQUEIOS:'Chutes Bloqueados',
+    FORA_ALVO:'Chutes Fora', OVER_1T:'Over 1º Tempo', UNDER_1T:'Under 1º Tempo', AGENDA:'Agenda do Dia' };
+  return m[tipo] || tipo;
+}
+
+function confVisual(c) {
+  if (c >= 85) return ['var(--amber)', 'ALTA'];
+  if (c >= 70) return ['var(--orange)', 'MÉDIA+'];
+  return ['var(--blue)', 'MOD'];
+}
+
+function renderCard(s, idx) {
+  if (s.tipo === 'AGENDA') return renderAgenda(s, idx);
+  const delay = Math.min(idx * 35, 400);
+  const [cor, bgCor, icone] = tipoVisual(s.tipo);
+  const elite = (s.confianca||0) >= 85;
+  const conf  = s.confianca || 60;
+  const [confCor, confLbl] = confVisual(conf);
+
+  const minBadge = s.minuto > 0
+    ? `<span class="card-min-badge" style="background:var(--amber-bg);color:var(--amber)">⏱ ${s.minuto}'</span>`
+    : s.min_inicio > 0
+    ? `<span data-countdown="${new Date(Date.now()+s.min_inicio*60000).toISOString()}" class="countdown-badge normal">⏳ em ${s.min_inicio}min</span>`
+    : '';
+
+  const janela = s.in_janela
+    ? `<span style="font-size:10px;color:var(--green);background:var(--green-bg);padding:1px 7px;border-radius:4px;font-family:var(--font-mono)">✓ Janela</span>`
+    : '';
+
+  const dadosHtml = renderDados(s);
+  const recomHtml = renderRecom(s);
+  const iaHtml = s.analise_ia
+    ? `<div class="card-ia">
+        <div class="ia-row"><span style="font-size:14px">🧠</span><span class="ia-lbl">Análise IA</span></div>
+        <p class="ia-txt">${escHtml(s.analise_ia)}</p>
+      </div>` : '';
+
+  const eliteBanner = elite
+    ? `<div class="elite-banner"><span class="elite-fire">🔥</span> SINAL ELITE — CONFIANÇA MÁXIMA <span class="elite-fire">🔥</span></div>`
+    : '';
+
+  return `
+<div class="signal-card ${elite?'elite-card':''}" style="animation-delay:${delay}ms">
+  <div class="signal-icon-col">
+    <div class="signal-icon" style="background:${bgCor};border-color:${cor}30">${icone}</div>
+    <div class="sig-time">${s.horario||''}</div>
+  </div>
+  <div class="card-inner">
+    ${eliteBanner}
+    <div class="card-top">
+      <div style="display:flex;flex-direction:column;gap:5px">
+        <span class="tipo-badge" style="color:${cor};background:${bgCor};border-color:${cor}25">${labelTipo(s.tipo)}</span>
+        <div style="display:flex;gap:5px;flex-wrap:wrap">${minBadge}${janela}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div class="conf-num" style="color:${confCor}">${conf}%</div>
+        <div class="conf-nivel" style="background:${confCor}15;color:${confCor}">${confLbl}</div>
+      </div>
+    </div>
+    <div class="card-jogo">
+      <div class="card-teams">
+        ${escHtml(s.casa)} <span class="card-placar">${s.gols_casa??0}×${s.gols_fora??0}</span> ${escHtml(s.fora)}
+      </div>
+      <div class="card-meta">
+        <span class="card-liga">${escHtml(s.liga||'')}${s.pais?' · '+escHtml(s.pais):''}</span>
+        ${s.media_liga?`<span style="font-size:10px;color:var(--text-3);font-family:var(--font-mono)" data-tip="Média da liga">⌀ ${s.media_liga}</span>`:''}
+      </div>
+    </div>
+    <div class="card-corners">
+      <div class="corner-box"><span class="corner-lbl">Casa</span><span class="corner-val">${s.esc_casa||0}</span></div>
+      <span style="color:var(--text-3)">×</span>
+      <div class="corner-box"><span class="corner-lbl">Fora</span><span class="corner-val">${s.esc_fora||0}</span></div>
+      <span class="corner-total">= <strong style="color:var(--text-1)">${s.total_esc||0}</strong> total</span>
+    </div>
+    ${dadosHtml}
+    <div class="conf-section">
+      <div class="conf-row">
+        <span class="conf-row-label">Confiança do sinal</span>
+        <div class="conf-row-right">
+          <span class="conf-nivel" style="background:${confCor}15;color:${confCor}">${confLbl}</span>
+          <span class="conf-num" style="color:${confCor}">${conf}%</span>
+        </div>
+      </div>
+      <div class="conf-track"><div class="conf-fill" style="width:${conf}%;background:${confCor}"></div></div>
+    </div>
+    ${recomHtml}
+    ${iaHtml}
+  </div>
+</div>`;
+}
+
+function renderDados(s) {
+  const itens = [];
+  if (s.projecao != null)   itens.push({l:'Projeção 90\'', v:s.projecao, c:'g'});
+  if (s.linha != null)      itens.push({l:'Linha', v:s.linha});
+  if (s.ritmo != null)      itens.push({l:'Ritmo esc/min', v:s.ritmo});
+  if (s.ritmo_rec > 0)      itens.push({l:'Ritmo recente', v:s.ritmo_rec, c:'a'});
+  if (s.fator_placar != null) itens.push({l:'Fator placar', v:'×'+s.fator_placar});
+  if (s.esc_rec > 0)        itens.push({l:'Ult. 12min', v:s.esc_rec+' esc', c:'a'});
+  if (s.time_dom)           itens.push({l:'Dominante', v:s.time_dom, c:'g'});
+  if (s.time_mom)           itens.push({l:'Momentum', v:s.time_mom});
+  if (s.time_pressao)       itens.push({l:'Pressão', v:s.time_pressao});
+  if (s.chutes_gol > 0)     itens.push({l:'Chutes a gol', v:s.chutes_gol});
+  if (s.ataques > 0)        itens.push({l:'Ataques perig.', v:s.ataques});
+  if (s.time_f)             itens.push({l:'Time forte', v:s.time_f, c:'g'});
+  if (s.diff != null)       itens.push({l:'Diferença esc.', v:s.diff});
+  if (s.h2h_media != null)  itens.push({l:'H2H médio', v:s.h2h_media, c:'b'});
+  if (s.avg_casa != null)   itens.push({l:'Média casa', v:s.avg_casa, c:'b'});
+  if (s.avg_fora != null)   itens.push({l:'Média fora', v:s.avg_fora, c:'b'});
+  if (!itens.length) return '';
+  return `<div class="card-dados">${itens.map(it => `<div class="dado-item">
+    <span class="dado-lbl">${it.l}</span>
+    <span class="dado-val ${it.c||''}">${it.v}</span>
+  </div>`).join('')}</div>`;
+}
+
+function renderRecom(s) {
+  let icone='', txt='', sub='';
+  switch(s.tipo) {
+    case 'OVER': icone='📈'; txt=`Entrada: OVER ${s.linha} Escanteios`; sub=s.in_janela?'Dentro da janela ideal':'Verifique a odd antes de entrar'; break;
+    case 'UNDER': icone='📉'; txt=`Entrada: UNDER ${s.linha} Escanteios`; sub='Jogo com ritmo baixo'; break;
+    case 'PRE_OVER': icone='📋'; txt=`Pré-jogo: OVER ${s.linha} Escanteios`; sub='Entre antes do jogo para odds melhores'; break;
+    case 'PRE_UNDER': icone='📋'; txt=`Pré-jogo: UNDER ${s.linha} Escanteios`; sub='Dados históricos sugerem jogo com poucos corners'; break;
+    case 'PRE_AMBOS_ALTO': icone='🔥'; txt='Ambos os times geram muitos escanteios'; sub='Cenário ideal para Over alto no pré-jogo'; break;
+    case 'MOMENTUM': icone='🌊'; txt='Onda ativa — próximo escanteio iminente'; sub=s.time_mom?`${s.time_mom} lidera o momentum`:'Sequência ativa'; break;
+    case 'PRESSAO': icone='🔥'; txt=`${s.time_pressao} pressiona forte`; sub='Escanteio a favor provável'; break;
+    case 'QUENTE': icone='🔥'; txt=`Jogo quente — projeção ${s.projecao} corners`; sub='Entry rápida antes das odds caírem'; break;
+    case 'DOMINIO': icone='👑'; txt=`${s.time_dom} domina os escanteios`; sub=`${s.esc_dom}×${s.esc_out} — Over individual ou Handicap`; break;
+    case 'HANDICAP': icone='📊'; txt=`Handicap ${s.time_f}`; sub=`Diferença de ${s.diff} escanteios`; break;
+    case 'TEMPO2': icone='⚡'; txt='2º tempo acelerando'; sub='Over ao vivo com projeção favorável'; break;
+    case 'DESESPERO': icone='😤'; txt=`${s.time_p} vai pressionar`; sub=`Perdendo por ${s.diff_g} gol(s)`; break;
+    case 'SECA': icone='🏜️'; txt=`${s.min_sem}min sem escanteio`; sub='Under lucrativo OU explosão iminente'; break;
+    case 'BLOQUEIOS': icone='🛡️'; txt='Chutes bloqueados gerando corners'; sub='Próximo escanteio é questão de tempo'; break;
+    case 'OVER_1T': icone='🔔'; txt=`Over ${s.linha} no 1º Tempo`; sub='Ritmo alto na primeira etapa'; break;
+    case 'UNDER_1T': icone='🔕'; txt=`Under ${s.linha} no 1º Tempo`; sub='Jogo parado na primeira etapa'; break;
+    default: return '';
+  }
+  return `<div class="card-recom">
+    <span class="recom-icon">${icone}</span>
+    <div><div class="recom-txt">${txt}</div><div class="recom-sub">${sub}</div></div>
+  </div>`;
+}
+
+function renderAgenda(s, idx) {
+  const delay = Math.min(idx * 35, 400);
+  const jogos = s.jogos || [];
+  const ligasMap = {};
+  jogos.forEach(j => { if (!ligasMap[j.liga]) ligasMap[j.liga]=[]; ligasMap[j.liga].push(j); });
+  const inner = Object.entries(ligasMap).slice(0,8).map(([liga, jgs]) => `
+    <div style="font-size:10px;font-family:var(--font-mono);color:var(--blue);padding:7px 0 3px;border-bottom:1px solid var(--border);margin-bottom:3px;letter-spacing:.5px;text-transform:uppercase">${escHtml(liga)}</div>
+    ${jgs.slice(0,5).map(j => {
+      const cls = j.urgencia==='iminente'?'var(--red)':j.urgencia==='breve'?'var(--amber)':'var(--text-3)';
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0;font-size:12px;border-bottom:1px solid var(--border)">
+        <span style="color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px">${escHtml(j.casa)} × ${escHtml(j.fora)}</span>
+        <span style="font-family:var(--font-mono);font-size:10px;color:${cls};padding:1px 6px;background:${cls}15;border-radius:4px;flex-shrink:0;margin-left:8px">${j.horario}</span>
+      </div>`;
+    }).join('')}
+  `).join('');
+  return `
+<div class="signal-card agenda-card" style="animation-delay:${delay}ms">
+  <div class="signal-icon-col">
+    <div class="signal-icon" style="background:var(--blue-bg);border-color:rgba(56,189,248,0.2)">📅</div>
+    <div class="sig-time">${s.horario||''}</div>
+  </div>
+  <div class="card-inner">
+    <div class="card-top">
+      <div>
+        <span class="tipo-badge" style="color:var(--blue);background:var(--blue-bg);border-color:rgba(56,189,248,0.2)">📅 Agenda do Dia — ${s.data||''}</span>
+      </div>
+      <span style="font-size:11px;font-family:var(--font-mono);color:var(--text-3)">${jogos.length} jogos</span>
+    </div>
+    <div style="padding:0 14px 14px">${inner}</div>
+    <div style="padding:8px 14px;border-top:1px solid var(--border);background:var(--blue-bg);font-size:11px;color:var(--blue)">
+      📋 Sinais pré-jogo enviados conforme os jogos se aproximam
+    </div>
+  </div>
+</div>`;
+}
+
+// ══════════════════════════════════════════════════════
+//  FILTRO ESCANTEIOS
+// ══════════════════════════════════════════════════════
+function setFilter(cat) {
+  filtroAtivo = cat;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === cat));
+  atualizarTimeline(0);
+}
+
+// ══════════════════════════════════════════════════════
+//  ABAS
+// ══════════════════════════════════════════════════════
+function setTab(tab) {
+  abaAtiva = tab;
+  const tabMap = { esc:'escanteios', gols:'gols', cartoes:'cartoes', resultado:'resultado', chat:'comunidade' };
+  const activeMap = { escanteios:'active-esc', gols:'active-gols', cartoes:'active-cartoes', resultado:'active-resultado', comunidade:'active-comunidade' };
+
+  // Reset todos os botões e painéis
+  ['esc','gols','cartoes','resultado','chat'].forEach(t => {
+    const b = document.getElementById('tab-' + t);
+    if (b) { b.className = 'tab-btn'; b.style.cssText = ''; }
+  });
+  ['escanteios','gols','cartoes','resultado','comunidade'].forEach(p => {
+    const el = document.getElementById('painel-' + p);
+    if (el) el.style.display = 'none';
+  });
+
+  const painel = document.getElementById('painel-' + tab);
+  if (painel) painel.style.display = '';
+
+  // Botão ativo
+  const tabId = Object.keys(tabMap).find(k => tabMap[k] === tab);
+  if (tabId) {
+    const btn = document.getElementById('tab-' + tabId);
+    if (btn) btn.className = 'tab-btn ' + (activeMap[tab]||'');
+  }
+
+  // Ação específica por aba
+  if (tab === 'gols')       fetchGols();
+  if (tab === 'cartoes')    fetchCartoes();
+  if (tab === 'resultado')  fetchResultado();
+  if (tab === 'comunidade') { _renderFeed(); _simularOnline(); }
+}
+
+// ══════════════════════════════════════════════════════
+//  CARTÕES
+// ══════════════════════════════════════════════════════
+let todosOsCartoes = [];
+const API_URL_CARTOES   = API_URL ? API_URL.replace('/sinais', '/cartoes')   : null;
+const API_URL_RESULTADO = API_URL ? API_URL.replace('/sinais', '/resultados') : null;
+
+async function fetchCartoes() {
+  if (!API_URL_CARTOES) return;
+  try {
+    const res = await fetch(API_URL_CARTOES + '?t=' + Date.now(), { cache:'no-store', mode:'cors' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const dados = await res.json();
+    todosOsCartoes = dados.sinais || [];
+    renderCartoes();
+    const el = document.getElementById('tab-badge-cartoes');
+    if (el) el.textContent = todosOsCartoes.length;
+  } catch(e) { console.warn('Cartões offline:', e.message); }
+}
+
+function renderCartoes() {
+  const feed = document.getElementById('catroesFeed');
+  if (!feed) return;
+  if (!todosOsCartoes.length) {
+    feed.innerHTML = `<div class="gols-empty">
+      <div class="gols-empty-icon">🟨</div>
+      <div class="gols-empty-title">Aguardando sinais de cartões...</div>
+      <div class="gols-empty-desc">O bot analisa árbitros, clássicos e contexto de tabela.<br>Sinais aparecem automaticamente.</div>
+    </div>`;
+    return;
+  }
+  feed.innerHTML = todosOsCartoes.map((c,i) => renderCartaoCard(c,i)).join('');
+}
+
+function renderCartaoCard(c, idx) {
+  const delay = Math.min(idx*35, 350);
+  const corProb = v => v>=.65?'var(--green)':v>=.50?'var(--amber)':v>=.35?'var(--blue)':'var(--text-3)';
+  const dt = c.dt ? new Date(c.dt) : null;
+  const hrJogo = dt ? dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '--:--';
+  const dtJogo = dt ? dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : '--/--';
+  const mkt = c.mercado || '';
+  const evStr = c.ev ? (c.ev>=0?'+':'')+((c.ev||0)*100).toFixed(1)+'%' : '—';
+  const evCor = (c.ev||0)>0?'var(--green)':'var(--red)';
+  const arbHtml = c.arb_nome ? `<div style="font-size:11px;color:var(--text-3);margin-top:4px">👮 ${escHtml(c.arb_nome)} — ${(c.arb_cartoes||0).toFixed(1)} cart/jogo</div>` : '';
+  const iaHtml  = c.analise_ia ? `<div class="cartao-ia">🧠 ${escHtml(c.analise_ia)}</div>` : '';
+  const tags = [];
+  if (c.classico) tags.push({l:'Clássico',c:'var(--red)',b:'var(--red-bg)'});
+  if (c.decisivo) tags.push({l:'Decisivo',c:'var(--amber)',b:'var(--amber-bg)'});
+
+  return `
+<div class="cartao-card" style="animation-delay:${delay}ms">
+  <div class="cartao-header">
+    <div>
+      <span class="cartao-tier">${escHtml(c.tier||'MORNO')}</span>
+      ${tags.map(t=>`<span style="font-size:9px;font-family:var(--font-mono);padding:1px 7px;border-radius:4px;background:${t.b};color:${t.c};margin-left:5px">${t.l}</span>`).join('')}
+    </div>
+    <div style="text-align:right;flex-shrink:0">
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--amber)">📅 ${dtJogo} às ${hrJogo}</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:2px">${escHtml(c.liga||'')}</div>
+    </div>
+  </div>
+  <div class="cartao-times">
+    <div class="cartao-confronto">
+      <span>${escHtml(c.casa||'?')}</span>
+      <span class="cartao-vs">×</span>
+      <span>${escHtml(c.fora||'?')}</span>
+    </div>
+    ${arbHtml}
+  </div>
+  <div class="cartao-lambda">
+    <div>
+      <div style="font-size:9px;font-family:var(--font-mono);color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Cartões esperados</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:1px">${(c.lambda_casa||0).toFixed(2)} casa + ${(c.lambda_fora||0).toFixed(2)} fora</div>
+    </div>
+    <div style="text-align:right">
+      <div class="cartao-lambda-val">${(c.lambda_total||0).toFixed(2)}</div>
+      <div style="font-size:10px;color:var(--text-3);font-family:var(--font-mono)">λ total</div>
+    </div>
+  </div>
+  <div class="cartao-probs">
+    <div class="cartao-prob-item">
+      <div class="cartao-prob-nome">Over 3.5</div>
+      <div class="cartao-prob-val" style="color:${corProb(c.prob_over35||0)}">${((c.prob_over35||0)*100).toFixed(0)}%</div>
+    </div>
+    <div class="cartao-prob-item">
+      <div class="cartao-prob-nome">Over 4.5</div>
+      <div class="cartao-prob-val" style="color:${corProb(c.prob_over45||0)}">${((c.prob_over45||0)*100).toFixed(0)}%</div>
+    </div>
+    <div class="cartao-prob-item">
+      <div class="cartao-prob-nome">Over 5.5</div>
+      <div class="cartao-prob-val" style="color:${corProb(c.prob_over55||0)}">${((c.prob_over55||0)*100).toFixed(0)}%</div>
+    </div>
+  </div>
+  <div class="cartao-mercado">
+    <div style="font-size:20px;flex-shrink:0">🟨</div>
+    <div>
+      <div style="font-family:var(--font-display);font-size:15px;font-weight:600;color:var(--text-1)">${escHtml(mkt)}</div>
+      <div style="font-size:11px;color:var(--text-2);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;font-family:var(--font-mono)">
+        <span>Odd <strong style="color:var(--amber)">${(c.odd||0).toFixed(2)}</strong></span>
+        <span>EV <strong style="color:${evCor}">${evStr}</strong></span>
+        ${c.stake?`<span>Stake <strong style="color:var(--amber)">R$ ${(c.stake||0).toFixed(0)}</strong></span>`:''}
+        <span>Score <strong style="color:var(--text-1)">${(c.score||0).toFixed(1)}</strong></span>
+      </div>
+    </div>
+  </div>
+  ${iaHtml}
+</div>`;
+}
+
+// ══════════════════════════════════════════════════════
+//  RESULTADO 1X2
+// ══════════════════════════════════════════════════════
+let todosOsResultados = [];
+
+async function fetchResultado() {
+  if (!API_URL_RESULTADO) return;
+  try {
+    const res = await fetch(API_URL_RESULTADO + '?t=' + Date.now(), { cache:'no-store', mode:'cors' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const dados = await res.json();
+    todosOsResultados = dados.sinais || [];
+    renderResultado();
+    const el = document.getElementById('tab-badge-resultado');
+    if (el) el.textContent = todosOsResultados.length;
+  } catch(e) { console.warn('Resultado offline:', e.message); }
+}
+
+function renderResultado() {
+  const feed = document.getElementById('resultadoFeed');
+  if (!feed) return;
+  if (!todosOsResultados.length) {
+    feed.innerHTML = `<div class="gols-empty">
+      <div class="gols-empty-icon">🏆</div>
+      <div class="gols-empty-title">Aguardando sinais 1X2...</div>
+      <div class="gols-empty-desc">O bot analisa partidas pré-jogo com modelo Dixon-Coles.<br>Sinais aparecem automaticamente com EV positivo.</div>
+    </div>`;
+    return;
+  }
+  feed.innerHTML = todosOsResultados.map((r,i) => renderResultadoCard(r,i)).join('');
+}
+
+function renderResultadoCard(r, idx) {
+  const delay = Math.min(idx*35, 350);
+  const corProb = v => v>=.55?'var(--green)':v>=.40?'var(--amber)':v>=.25?'var(--blue)':'var(--text-3)';
+  const dt = r.dt ? new Date(r.dt) : null;
+  const hrJogo = dt ? dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '--:--';
+  const dtJogo = dt ? dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : '--/--';
+  const evStr = r.ev ? (r.ev>=0?'+':'')+((r.ev||0)*100).toFixed(1)+'%' : '—';
+  const evCor = (r.ev||0)>0?'var(--green)':'var(--red)';
+  const scorePct = Math.min(((r.pontuacao||0)/10)*100, 100);
+  const nomeMkt = { '1':'Vitória Casa', 'X':'Empate', '2':'Vitória Fora', '1X':'Casa ou Empate', 'X2':'Fora ou Empate', '12':'Casa ou Fora' };
+  const renderForma = f => {
+    if(!f) return '';
+    return f.split('').map(c => {
+      const [l,cor]={W:['V','#00C868'],D:['E','#FCD34D'],L:['D','#FF4560']}[c]||[c,'var(--text-3)'];
+      return `<span style="width:15px;height:15px;border-radius:3px;background:${cor}22;color:${cor};font-size:9px;font-weight:700;display:inline-flex;align-items:center;justify-content:center">${l}</span>`;
+    }).join('');
+  };
+
+  return `
+<div class="resultado-card" style="animation-delay:${delay}ms">
+  <div class="resultado-header">
+    <span class="resultado-tier res-${escHtml(r.tier||'VIGIAR')}">${r.tier||'VIGIAR'}</span>
+    <div style="text-align:right">
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--blue)">📅 ${dtJogo} às ${hrJogo}</div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:2px">${escHtml(r.liga||'')} · ${escHtml(r.pais||'')}</div>
+    </div>
+  </div>
+  <div class="resultado-times" style="padding:12px 14px 10px">
+    <div class="resultado-confronto">
+      <span>${escHtml(r.casa||'?')}</span>
+      <span style="font-size:11px;color:var(--text-3);font-family:var(--font-mono)">×</span>
+      <span>${escHtml(r.fora||'?')}</span>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:6px">
+      ${r.hforma?`<div style="display:flex;gap:2px">${renderForma(r.hforma)}</div>`:''}
+      ${r.aforma?`<span style="color:var(--text-3);font-size:10px;margin:0 2px">vs</span><div style="display:flex;gap:2px">${renderForma(r.aforma)}</div>`:''}
+    </div>
+  </div>
+  <div class="resultado-probs-grid">
+    <div class="res-prob-item">
+      <div class="res-prob-nome">Vitória Casa (1)</div>
+      <div class="res-prob-val" style="color:${corProb(r.prob_1||0)}">${((r.prob_1||0)*100).toFixed(0)}%</div>
+    </div>
+    <div class="res-prob-item">
+      <div class="res-prob-nome">Empate (X)</div>
+      <div class="res-prob-val" style="color:${corProb(r.prob_x||0)}">${((r.prob_x||0)*100).toFixed(0)}%</div>
+    </div>
+    <div class="res-prob-item">
+      <div class="res-prob-nome">Vitória Fora (2)</div>
+      <div class="res-prob-val" style="color:${corProb(r.prob_2||0)}">${((r.prob_2||0)*100).toFixed(0)}%</div>
+    </div>
+    <div class="res-prob-item">
+      <div class="res-prob-nome">1X (dupla)</div>
+      <div class="res-prob-val" style="color:${corProb(r.prob_1x||0)}">${((r.prob_1x||0)*100).toFixed(0)}%</div>
+    </div>
+    <div class="res-prob-item">
+      <div class="res-prob-nome">X2 (dupla)</div>
+      <div class="res-prob-val" style="color:${corProb(r.prob_x2||0)}">${((r.prob_x2||0)*100).toFixed(0)}%</div>
+    </div>
+    <div class="res-prob-item">
+      <div class="res-prob-nome">12 (sem empate)</div>
+      <div class="res-prob-val" style="color:${corProb(r.prob_12||0)}">${((r.prob_12||0)*100).toFixed(0)}%</div>
+    </div>
+  </div>
+  <div class="resultado-mercado">
+    <div style="font-size:20px;flex-shrink:0">🏆</div>
+    <div>
+      <div style="font-family:var(--font-display);font-size:15px;font-weight:600;color:var(--text-1)">${escHtml(r.mercado||nomeMkt[r.mercado]||'—')}</div>
+      <div style="font-size:11px;color:var(--text-2);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap;font-family:var(--font-mono)">
+        <span>Odd <strong style="color:var(--blue)">${(r.odd||0).toFixed(2)}</strong></span>
+        <span>EV <strong style="color:${evCor}">${evStr}</strong></span>
+        <span>Edge <strong style="color:var(--blue)">${((r.edge||0)*100).toFixed(1)}%</strong></span>
+        ${r.stake?`<span>Stake <strong style="color:var(--blue)">R$ ${(r.stake||0).toFixed(0)}</strong></span>`:''}
+      </div>
+    </div>
+  </div>
+  <div class="resultado-score">
+    <div style="font-size:9px;font-family:var(--font-mono);color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Pontuação</div>
+    <div class="resultado-score-bar"><div class="resultado-score-fill" style="width:${scorePct}%"></div></div>
+    <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--blue);white-space:nowrap">${(r.pontuacao||0).toFixed(1)}</div>
+  </div>
+</div>`;
+
+// ══════════════════════════════════════════════════════
+//  GOLS
+// ══════════════════════════════════════════════════════
+async function fetchGols() {
+  if (!API_URL_GOLS) return;
+  try {
+    const res = await fetch(API_URL_GOLS + '?t=' + Date.now(), { cache:'no-store', mode:'cors' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const dados = await res.json();
+    todosOsGols = dados.sinais || [];
+    renderGols(); atualizarBadgesGols();
+  } catch(e) { console.warn('Gols offline:', e.message); }
+}
+
+function setTierFilter(tier) {
+  tierFiltro = tier;
+  document.querySelectorAll('.gol-tier-filter').forEach(b => {
+    b.style.opacity = b.dataset.tier === tier ? '1' : '0.55';
+    b.style.fontWeight = b.dataset.tier === tier ? '600' : '400';
+  });
+  renderGols();
+}
+
+function renderGols() {
+  const feed = document.getElementById('golsFeed');
+  const lista = tierFiltro === 'todos' ? todosOsGols : todosOsGols.filter(g => g.tier === tierFiltro);
+  if (!lista.length) {
+    feed.innerHTML = `<div class="gols-empty">
+      <div class="gols-empty-icon">⚽</div>
+      <div class="gols-empty-title">${tierFiltro==='todos'?'Bot de Gols conectado':'Nenhum sinal '+tierFiltro}</div>
+      <div class="gols-empty-desc">${tierFiltro==='todos'?'Sinais aparecem conforme o bot analisa.<br>Varredura a cada 90 segundos.':'Tente outro filtro ou aguarde o próximo ciclo.'}</div>
+    </div>`;
+    return;
+  }
+  feed.innerHTML = lista.map((g,i) => renderGolCard(g,i)).join('');
+}
+
+function renderGolCard(g, idx) {
+  const delay = Math.min(idx * 35, 350);
+  const p = g.probs || {}, mkt = g.mkt || {}, h2h = g.h2h || null;
+  const tierIcon = { ELITE:'🔥🔥', QUENTE:'🔥', MORNO:'⚡', VIGIAR:'👀' }[g.tier]||'';
+  const tierLbl  = { ELITE:'Elite — Máxima', QUENTE:'Quente — Alta', MORNO:'Morno — Boa', VIGIAR:'Vigiar — Monit.' }[g.tier]||g.tier;
+  const dt = g.dt ? new Date(g.dt) : null;
+  const hrJogo = dt ? dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '--:--';
+  const dtJogo = dt ? dt.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}) : '--/--';
+  const renderForma = f => {
+    if (!f) return '<span style="color:var(--text-3);font-size:11px">—</span>';
+    return (f||'').split('').map(c => {
+      const [l, cor] = { W:['V','#00C868'], D:['E','#FCD34D'], L:['D','#FF4560'] }[c]||[c,'var(--text-3)'];
+      return `<span class="gol-forma-letra" style="background:${cor}22;color:${cor}">${l}</span>`;
+    }).join('');
+  };
+  const corProb = v => v>=.65?'var(--green)':v>=.50?'var(--amber)':v>=.35?'var(--blue)':'var(--text-3)';
+  const evStr = mkt.ev !== undefined ? (mkt.ev>=0?'+':'')+((mkt.ev||0)*100).toFixed(1)+'%' : '—';
+  const evCor = (mkt.ev||0) > 0 ? 'var(--green)' : 'var(--red)';
+  const mktIcone = () => { const n=(mkt.nome||'').toLowerCase(); return n.includes('mais')?'📈':n.includes('menos')?'📉':'🎯'; };
+  const tags = [];
+  if (g.classico) tags.push({l:'Clássico',c:'var(--red)',b:'var(--red-bg)'});
+  if (g.decisivo) tags.push({l:'Decisivo',c:'var(--amber)',b:'var(--amber-bg)'});
+  const tagsHtml = tags.map(t=>`<span class="gol-tag" style="background:${t.b};color:${t.c}">${t.l}</span>`).join('');
+  const pct = Math.min(((g.pontuacao||0)/10)*100, 100);
+
+  return `
+<div class="gol-card ${g.tier==='ELITE'?'tier-elite':''}" style="animation-delay:${delay}ms">
+  <div class="gol-header">
+    <span class="gol-tier-badge tier-${escHtml(g.tier)}">${tierIcon} ${escHtml(tierLbl)}</span>
+    <div class="gol-liga-info">
+      <div class="gol-liga-nome">${escHtml(g.liga||'')} · ${escHtml(g.pais||'')}</div>
+      <div class="gol-horario">📅 ${dtJogo} às ${hrJogo}</div>
+    </div>
+  </div>
+  <div class="gol-times">
+    <div class="gol-confronto">
+      <span>${escHtml(g.casa||'?')}</span><span class="gol-vs">×</span><span>${escHtml(g.fora||'?')}</span>
+    </div>
+    ${tagsHtml?`<div class="gol-tags">${tagsHtml}</div>`:''}
+  </div>
+  <div class="gol-lambda">
+    <div><div class="gol-stat-label">Gols esperados</div><div class="gol-lambda-sub">${(g.lh||0).toFixed(2)} + ${(g.la||0).toFixed(2)}</div></div>
+    <div style="margin-left:auto;text-align:right">
+      <div class="gol-lambda-val">${(g.lt||0).toFixed(2)}</div>
+      <div class="gol-lambda-sub">λ total</div>
+    </div>
+  </div>
+  <div class="gol-stats">
+    <div class="gol-stat-time">
+      <div class="gol-stat-label">${escHtml(g.casa||'Casa')}</div>
+      <div class="gol-stat-row"><span class="gol-stat-chip">GF ${(g.hgf||0).toFixed(2)}</span><span class="gol-stat-chip">GA ${(g.hga||0).toFixed(2)}</span></div>
+      <div class="gol-forma">${renderForma(g.hforma)}</div>
+    </div>
+    <div class="gol-stat-time">
+      <div class="gol-stat-label">${escHtml(g.fora||'Fora')}</div>
+      <div class="gol-stat-row"><span class="gol-stat-chip">GF ${(g.agf||0).toFixed(2)}</span><span class="gol-stat-chip">GA ${(g.aga||0).toFixed(2)}</span></div>
+      <div class="gol-forma">${renderForma(g.aforma)}</div>
+    </div>
+  </div>
+  <div class="gol-probs">
+    <div class="gol-probs-title">Probabilidades calculadas</div>
+    <div class="gol-probs-grid">
+      <div class="gol-prob-item"><div class="gol-prob-nome">+1.5 gols</div><div class="gol-prob-val" style="color:${corProb(p.o15||0)}">${((p.o15||0)*100).toFixed(0)}%</div></div>
+      <div class="gol-prob-item"><div class="gol-prob-nome">+2.5 gols</div><div class="gol-prob-val" style="color:${corProb(p.o25||0)}">${((p.o25||0)*100).toFixed(0)}%</div></div>
+      <div class="gol-prob-item"><div class="gol-prob-nome">+3.5 gols</div><div class="gol-prob-val" style="color:${corProb(p.o35||0)}">${((p.o35||0)*100).toFixed(0)}%</div></div>
+      <div class="gol-prob-item"><div class="gol-prob-nome">Ambas</div><div class="gol-prob-val" style="color:${corProb(p.ambas_sim||0)}">${((p.ambas_sim||0)*100).toFixed(0)}%</div></div>
+      <div class="gol-prob-item"><div class="gol-prob-nome">-2.5 gols</div><div class="gol-prob-val" style="color:${corProb(p.u25||0)}">${((p.u25||0)*100).toFixed(0)}%</div></div>
+      <div class="gol-prob-item"><div class="gol-prob-nome">-1.5 gols</div><div class="gol-prob-val" style="color:${corProb(p.u15||0)}">${((p.u15||0)*100).toFixed(0)}%</div></div>
+    </div>
+  </div>
+  ${h2h?`<div class="gol-h2h">
+    <span class="gol-h2h-chip">H2H <strong>${h2h.n}</strong> jogos</span>
+    <span class="gol-h2h-chip">Média <strong>${(h2h.media||0).toFixed(1)}</strong></span>
+    <span class="gol-h2h-chip">+2.5 <strong>${((h2h.o25||0)*100).toFixed(0)}%</strong></span>
+    <span class="gol-h2h-chip">Ambas <strong>${((h2h.ambas||0)*100).toFixed(0)}%</strong></span>
+  </div>`:''}
+  <div class="gol-mercado">
+    <div class="gol-mercado-icon">${mktIcone()}</div>
+    <div>
+      <div class="gol-mercado-nome">${escHtml(mkt.nome||'—')}</div>
+      <div class="gol-mercado-detail">
+        <span class="gol-mercado-chip">Prob <strong>${((mkt.prob||0)*100).toFixed(1)}%</strong></span>
+        <span class="gol-mercado-chip">Odd <strong>${(mkt.odd||0).toFixed(2)}</strong></span>
+        <span class="gol-mercado-chip">EV <strong style="color:${evCor}">${evStr}</strong></span>
+        ${g.stake?`<span class="gol-mercado-chip">Stake <strong>R$ ${(g.stake||0).toFixed(0)}</strong></span>`:''}
+      </div>
+    </div>
+  </div>
+  <div class="gol-score">
+    <div><div class="gol-score-label">Pontuação</div></div>
+    <div class="gol-score-bar-wrap"><div class="gol-score-bar"><div class="gol-score-fill" style="width:${pct}%"></div></div></div>
+    <div class="gol-score-val">${(g.pontuacao||0).toFixed(1)}</div>
+  </div>
+</div>`;
+}
+
+function atualizarBadgesGols() {
+  document.getElementById('tab-badge-gols').textContent = todosOsGols.length;
+  ['ELITE','QUENTE','MORNO','VIGIAR'].forEach(t => { const el=document.getElementById('gf-'+t); if(el) el.textContent=todosOsGols.filter(g=>g.tier===t).length; });
+  const elT=document.getElementById('gf-todos'); if(elT) elT.textContent=todosOsGols.length;
+}
+
+// ══════════════════════════════════════════════════════
+//  COMUNIDADE
+// ══════════════════════════════════════════════════════
+const _cores = ['#00FF87','#38BDF8','#A78BFA','#FF6B2B','#22D3EE','#FCD34D','#F472B6'];
+const _reacoes = [0,0,0,0,0];
+let _meuNick = localStorage.getItem('sf_nick')||'';
+let _minhaCorIdx = parseInt(localStorage.getItem('sf_cor')||'0');
+const _msgs = [];
+
+const _votos = JSON.parse(localStorage.getItem('sf_votos')||'[48,21,15,9]');
+let _meuVoto = localStorage.getItem('sf_meu_voto');
+
+function _horaAtual(minOff) {
+  const d = new Date(Date.now() + minOff*60000);
+  const brt = new Date(d.toLocaleString('en-US',{timeZone:'America/Sao_Paulo'}));
+  return brt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+function _horaBRT() { return _horaAtual(0); }
+
+const _msgsIniciais = [
+  { nick:'TradingPro', cor:'#00FF87', badge:'Pro', badgeCor:'#065f46', texto:'Sinal ELITE de escanteios acabou de entrar! 🔥', hora:_horaAtual(-8) },
+  { nick:'BetAnalyst', cor:'#38BDF8', badge:'', badgeCor:'', texto:'Alguém acompanhando o Leon x FC Juarez? escanteio do Juarez foi exato', hora:_horaAtual(-6) },
+  { nick:'GreenHunter', cor:'#FCD34D', badge:'', badgeCor:'', texto:'Over 9.5 bateu fácil hoje na Bundesliga', hora:_horaAtual(-4) },
+  { nick:'TradingPro', cor:'#00FF87', badge:'Pro', badgeCor:'#065f46', texto:'Quem usa o critério de Kelly pra dimensionar a entrada?', hora:_horaAtual(-3) },
+  { nick:'CornerKing', cor:'#A78BFA', badge:'', badgeCor:'', texto:'Uso sim, mas com fração de 10% pra ser mais conservador', hora:_horaAtual(-2) },
+  { nick:'Sistema', cor:'', badge:'', badgeCor:'', texto:'🔔 Novo sinal detectado — Over 10.5 Escanteios', hora:_horaAtual(-1), sistema:true },
+];
+
+function _renderEnquete() {
+  const total = _votos.reduce((a,b)=>a+b,0);
+  const votou = _meuVoto !== null;
+  _votos.forEach((v,i) => {
+    const pct = total>0?Math.round(v/total*100):0;
+    const fill = document.getElementById('efill-'+i);
+    const pctEl= document.getElementById('epct-'+i);
+    const opcao= fill?.parentElement;
+    if(fill)  fill.style.width  = votou?pct+'%':'0%';
+    if(pctEl){ pctEl.textContent=pct+'%'; pctEl.style.display=votou?'':'none'; }
+    if(opcao&&votou){ opcao.classList.add('votado'); opcao.onclick=null; if(String(i)===String(_meuVoto)) opcao.style.borderColor='var(--green)'; }
+  });
+  const tot=document.getElementById('enquete-total');
+  if(tot) tot.textContent=votou?`✅ Você votou · ${total} votos totais`:`Toque para votar · ${total} votos`;
+}
+
+function votar(idx) {
+  if(_meuVoto!==null) return;
+  _votos[idx]++; _meuVoto=idx;
+  localStorage.setItem('sf_votos',JSON.stringify(_votos));
+  localStorage.setItem('sf_meu_voto',idx);
+  _renderEnquete();
+}
+
+_renderEnquete();
+
+function _iniciais(n) { return n.slice(0,2).toUpperCase(); }
+function _corParaNick(n) { let h=0; for(let i=0;i<n.length;i++) h=(h*31+n.charCodeAt(i))%_cores.length; return _cores[h]; }
+
+function _renderMsg(m) {
+  if(m.sistema) return `<div class="chat-msg sistema"><span class="chat-msg-texto">${escHtml(m.texto)}</span></div>`;
+  const cor = m.cor||_corParaNick(m.nick);
+  const badgeHtml = m.badge?`<span class="chat-msg-badge" style="background:${m.badgeCor}22;color:${m.badgeCor}">${m.badge}</span>`:'';
+  return `<div class="chat-msg${m.nick===_meuNick?' destaque':''}">
+    <div class="chat-avatar" style="background:${cor}22;color:${cor}">${_iniciais(m.nick)}</div>
+    <div class="chat-msg-body">
+      <div class="chat-msg-top">
+        <span class="chat-msg-nome" style="color:${cor}">${escHtml(m.nick)}</span>
+        ${badgeHtml}
+        <span class="chat-msg-hora">${m.hora}</span>
+      </div>
+      <div class="chat-msg-texto">${escHtml(m.texto)}</div>
+    </div>
+  </div>`;
+}
+
+function _renderFeed() {
+  const feed=document.getElementById('chatFeed');
+  if(!feed) return;
+  feed.innerHTML=[..._msgsIniciais,..._msgs].map(_renderMsg).join('');
+  feed.scrollTop=feed.scrollHeight;
+}
+
+function definirNick() {
+  const inp=document.getElementById('chatNickInput');
+  if(!inp) return;
+  const nick=inp.value.trim().replace(/[<>]/g,'').slice(0,16);
+  if(!nick){ inp.focus(); return; }
+  _meuNick=nick; _minhaCorIdx=Math.floor(Math.random()*_cores.length);
+  localStorage.setItem('sf_nick',nick); localStorage.setItem('sf_cor',_minhaCorIdx);
+  document.getElementById('chatNickWrap').style.display='none';
+  document.getElementById('chatInputWrap').style.display='flex';
+  _msgs.push({nick:'Sistema',cor:'',badge:'',badgeCor:'',texto:`👋 ${nick} entrou no chat`,hora:_horaBRT(),sistema:true});
+  _renderFeed();
+  setTimeout(() => {
+    _msgs.push({nick:'TradingPro',cor:'#00FF87',badge:'Pro',badgeCor:'#065f46',texto:`Bem-vindo, ${nick}! 🎯`,hora:_horaBRT()});
+    _renderFeed();
+  }, 1500);
+}
+
+function enviarMsg() {
+  if(!_meuNick) return;
+  const inp=document.getElementById('chatMsg');
+  if(!inp) return;
+  const txt=inp.value.trim();
+  if(!txt) return;
+  inp.value='';
+  _msgs.push({nick:_meuNick,cor:_cores[_minhaCorIdx],badge:'',badgeCor:'',texto:txt,hora:_horaBRT()});
+  _renderFeed();
+  if(Math.random()<0.3) {
+    const bots=[
+      {nick:'BetAnalyst',cor:'#38BDF8',txt:'Boa observação! Esse sinal estava bem forte mesmo.'},
+      {nick:'GreenHunter',cor:'#FCD34D',txt:'Concordo. A janela de 50-75min costuma ser a melhor.'},
+      {nick:'CornerKing',cor:'#A78BFA',txt:'🔥 Exatamente isso que eu penso também!'},
+    ];
+    const bot=bots[Math.floor(Math.random()*bots.length)];
+    setTimeout(() => {
+      _msgs.push({nick:bot.nick,cor:bot.cor,badge:'',badgeCor:'',texto:bot.txt,hora:_horaBRT()});
+      _renderFeed();
+    }, 1000+Math.random()*2000);
+  }
+}
+
+function enviarReacao(emoji) {
+  const map={'🔥':0,'💰':1,'✅':2,'🎯':3,'😬':4};
+  const idx=map[emoji];
+  if(idx===undefined) return;
+  _reacoes[idx]++;
+  const el=document.getElementById('r'+idx);
+  if(el) el.textContent=_reacoes[idx];
+  const btns=document.querySelectorAll('.reacao-btn');
+  if(btns[idx]){ btns[idx].classList.add('pulsou'); setTimeout(()=>btns[idx].classList.remove('pulsou'),300); }
+  _msgs.push({nick:'Sistema',cor:'',badge:'',badgeCor:'',texto:`${_meuNick||'Alguém'} reagiu com ${emoji}`,hora:_horaBRT(),sistema:true});
+  _renderFeed();
+}
+
+function _simularOnline() {
+  const base=3+Math.floor(Math.random()*8);
+  const el=document.getElementById('chatOnline');
+  if(el) el.textContent=base+' online';
+}
+
+setInterval(_simularOnline, 15000);
+
+setInterval(() => {
+  if(abaAtiva!=='comunidade') return;
+  if(Math.random()>0.15) return;
+  const auto=[
+    {nick:'BetAnalyst',cor:'#38BDF8',txt:'Alguém viu o sinal de Over que acabou de entrar? 👀'},
+    {nick:'GreenHunter',cor:'#FCD34D',txt:'Bundesliga hoje tá com muitos escanteios 🔥'},
+    {nick:'CornerKing',cor:'#A78BFA',txt:'Já entrei no Over 9.5 da Premier. Vamos ver.'},
+  ];
+  const m=auto[Math.floor(Math.random()*auto.length)];
+  _msgs.push({...m,badge:'',badgeCor:'',hora:_horaBRT()});
+  _renderFeed();
+}, 25000);
+
+if(_meuNick) {
+  const nw=document.getElementById('chatNickWrap');
+  const iw=document.getElementById('chatInputWrap');
+  if(nw) nw.style.display='none';
+  if(iw) iw.style.display='flex';
+}
+
+// ══════════════════════════════════════════════════════
+//  CONFIGURAR URL
+// ══════════════════════════════════════════════════════
+function configurarUrl() {
+  const atual=localStorage.getItem('statflow_api_url')||API_URL||'';
+  const nova=prompt('🔗 URL do bot Railway\nDeve terminar com /sinais\n\nAtual: '+(atual||'(não configurada)'),atual);
+  if(nova===null) return;
+  if(!nova||!nova.startsWith('http')){ alert('❌ URL inválida'); return; }
+  const urlFinal=nova.trim().endsWith('/sinais')?nova.trim():nova.trim().replace(/\/$/,'')+'/sinais';
+  localStorage.setItem('statflow_api_url',urlFinal);
+  alert('✅ URL salva:\n'+urlFinal+'\n\nA página vai recarregar.');
+  window.location.reload();
+}
+
+// ══════════════════════════════════════════════════════
+//  INICIAR
+// ══════════════════════════════════════════════════════
+setInterval(atualizarRelogio, 1000);
+atualizarRelogio();
+
+if(!API_URL) {
+  setOnline(false, '⚙ Config');
+  mostrarToast('URL do Railway não configurada.', 'amber');
+} else {
+  fetchSinais();
+  autoRefresh = setInterval(fetchSinais, REFRESH_INTERVAL);
+  golsRefresh = setInterval(() => {
+    if(abaAtiva==='gols')      fetchGols();
+    if(abaAtiva==='cartoes')   fetchCartoes();
+    if(abaAtiva==='resultado') fetchResultado();
+  }, 30000);
+  setTimeout(() => mostrarToast('StatFlow — Auto-atualização ativa', 'green'), 1500);
+}
+</script>
+</body>
+</html>
