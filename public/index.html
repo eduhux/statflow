@@ -2555,7 +2555,11 @@ async function fetchSinais() {
     }
   } catch(e) {
     setOnline(false, 'Offline');
-    console.warn('API offline:', e.message);
+    console.error('API offline — erro detalhado:', e.name, e.message, API_URL);
+    // Mostra o erro específico no toast para debug
+    if (e.name === 'TypeError' && e.message.includes('fetch')) {
+      console.error('CORS ou rede bloqueando. URL:', API_URL);
+    }
   } finally {
     setTimeout(() => { bar.style.width='100%'; setTimeout(() => bar.style.width='0%', 300); }, 200);
     btn.classList.remove('spinning');
